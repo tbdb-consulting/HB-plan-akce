@@ -2449,7 +2449,7 @@ var qrcode = function() {
 <body>
 <div class="wrap">
   <h1>HB26 — postup u pomocníků <a href="./" title="Zpátky do plánovače Hory Bory">&#8592; plánovač</a>
-    <span class="verze" title="Verze a datum sestavení téhle stránky. Když se neshoduje s tím, co čekáte, máte otevřenou starou kopii.">v1.2 · 18. 9. 2026 · QR: MSG + X-ID</span></h1>
+    <span class="verze" title="Verze a datum sestavení téhle stránky. Když se neshoduje s tím, co čekáte, máte otevřenou starou kopii.">v1.3 · 18. 9. 2026 · QR: MSG + X-ID</span></h1>
   <div class="intro">
     Všechno se ukládá do databáze (Supabase, tabulka <code>vyplaty</code>, navázaná na členy grup) — otevřete to kdekoli,
     přihlásíte se stejným účtem jako do plánovače a vidíte ten samý stav. <strong>Zaškrtávátka se ukládají hned.</strong>
@@ -2496,7 +2496,7 @@ var qrcode = function() {
         <div class="kachle">zaplaceno<b id="k4">0</b></div>
         <div class="kachle">nedotčeno<b id="k5">0</b></div>
         <div class="kachle">v historii<b id="k9">0</b></div>
-        <div class="kachle">celkem<b id="k6">0 Kč</b></div>
+        <div class="kachle" title="Kolik se na odměnách platí za celý ročník — rozpracované i to, co už je v historii.">platit celkem<b id="k6">0 Kč</b></div>
         <div class="kachle">zbývá zaplatit<b id="k7">0 Kč</b></div>
       </div>
       <div class="mriz">
@@ -2896,6 +2896,10 @@ async function doHistorie(r, checkbox){
     }
     await zavolej('vyplaty_do_historie', r.id);
     radky = radky.filter(x => x.klic !== r.klic);
+    /* Řádek rovnou převěsíme i v paměti. Bez toho by po zaplacení na okamžik
+       zmizel z obou seznamů a „platit celkem" by o tu částku kleslo, než si
+       stránka načte historii znovu. */
+    if(!historie.some(x => x.id === r.id)) historie.push(r);
     historieNactena = false;
     ukazatel('Uloženo ' + new Date().toLocaleTimeString('cs-CZ'));
     hlaska('hlaska', '', '');
@@ -3396,13 +3400,19 @@ async function vykresliHistorii(q, sl){
 
 function pocty(){
   let f = 0, d = 0, fa = 0, z = 0, sCastkou = 0, nic = 0, suma = 0, sumaZapl = 0;
+  /* „platit celkem" je za celý ročník, ne jen za to, co zrovna leží v tabulce.
+     Zaplacení řádek odsune do historie, takže kdyby se sčítaly jen `radky`,
+     číslo by s každou platbou klesalo a vypadalo jako náklady, kterými není.
+     *Změněno 19. 9. 2026 na žádost Keksy.* */
+  let sumaVse = 0;
+  historie.forEach(r => { const c = cisloNeboNull(r.castka_kc); if(c !== null) sumaVse += c; });
   radky.forEach(r => {
     if(r.formular_typ) f++;
     if(r.domluva) d++;
     if(r.faktura) fa++;
     if(r.zaplaceno) z++;
     const c = cisloNeboNull(r.castka_kc);
-    if(c !== null){ sCastkou++; suma += c; if(r.zaplaceno) sumaZapl += c; }
+    if(c !== null){ sCastkou++; suma += c; sumaVse += c; if(r.zaplaceno) sumaZapl += c; }
     if(!neco(r)) nic++;
   });
   el('k1').textContent = f;
@@ -3410,7 +3420,7 @@ function pocty(){
   el('k3').textContent = sCastkou;
   el('k4').textContent = z;
   el('k5').textContent = nic;
-  el('k6').textContent = kc(suma);
+  el('k6').textContent = kc(sumaVse);
   el('k7').textContent = kc(suma - sumaZapl);
   el('k8').textContent = fa;
   el('k9').textContent = historieNactena ? historie.length : '?';
