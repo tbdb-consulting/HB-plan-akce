@@ -6451,6 +6451,7 @@ function kresliNastaveni(){
 function zmenNastaveni(){
   D.nastaveni.aktivni_rok = $('#polRok').value;
   D.nastaveni.datum_zavodu = $('#polDatum').value;
+  ROCNIK_ZMENEN = true;
   $('#odznakRok').textContent = D.nastaveni.aktivni_rok;
   vseKresli();
   hlaska('Ročník: ' + D.nastaveni.aktivni_rok);
@@ -7123,6 +7124,10 @@ function dopoctiPrejezdy(){
 /* Čísla, podle kterých se počítá, nejsou v kódu — sedí v nastavení a dají se
    změnit bez zásahu do programu. Tohle jsou jen výchozí hodnoty pro případ,
    že v databázi ještě nic není. */
+/* Co se od posledního uložení změnilo. Pravidla se ukládají po jednom, ne
+   celá hromada najednou, tak si nástroj drží seznam dotčených klíčů. */
+const PRAVIDLA_ZMENENA = new Set();
+let ROCNIK_ZMENEN = false;
 const PRAVIDLA_VYCHOZI = {
   zahajeni_pred:   25,      // minut PŘED prvním běžcem — kdo předávku otevírá, přijede jak stíhá
   obsluha_pred:    40,      // minut PŘED prvním běžcem — kdo ji drží, má tam být dřív
@@ -11643,11 +11648,14 @@ async function nactiZDatabaze(){
     }catch(e){ hlaseni.push('vzor loňska: ' + e.message); }
   }
 
-  // nastavení je jediný řádek, jde mimo mapu
+  /* Nastavení a pravidla jsou od 23. 9. 2026 v tabulce parametr_hodnota, kterou
+     spravuje administrace webu. Pohled verejne_nastaveni je poskládá do stejného
+     tvaru, jaký tu byl dřív, takže zbytek nástroje se nemění. */
   try{
-    const n = await sbDotaz('nastaveni?select=*&id=eq.1');
+    const n = await sbDotaz('verejne_nastaveni?select=aktivni_rok,datum_zavodu,pravidla');
     if(n.length){ D.nastaveni.aktivni_rok = n[0].aktivni_rok; D.nastaveni.datum_zavodu = n[0].datum_zavodu || '';
-      D.nastaveni.pravidla = n[0].pravidla || {}; }
+      D.nastaveni.pravidla = n[0].pravidla || {};
+      PRAVIDLA_ZMENENA.clear(); ROCNIK_ZMENEN = false; }
   }catch(e){ hlaseni.push('nastavení: ' + e.message); }
   doplnCasyBezcu();          // časy běžců se berou z HB25, ne z toho, co přišlo z databáze
   return {potize: hlaseni, poznamky};
@@ -12186,15 +12194,22 @@ async function ulozDoDatabaze(volby){
     }
   }
 
-  // nastavení ročníku
+  /* Ročník a pravidla. Každé pravidlo je vlastní řádek v parametr_hodnota, tak
+     se posílá jen to, na co se sáhlo — databáze si u každé změny pamatuje, kdo
+     a kdy. Prázdné políčko znamená „bez hodnoty", pak platí výchozí číslo z kódu. */
   try{
-    await sbDotaz('nastaveni?on_conflict=id', {
-      method:'POST',
-      headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
-      body: JSON.stringify([{id:1, aktivni_rok:D.nastaveni.aktivni_rok,
-                             datum_zavodu:D.nastaveni.datum_zavodu || null,
-                             pravidla:D.nastaveni.pravidla || {}}])
-    });
+    if(ROCNIK_ZMENEN){
+      await sbDotaz('rpc/planovac_nastav_rocnik', {method:'POST',
+        body: JSON.stringify({p_rok: D.nastaveni.aktivni_rok,
+                              p_datum: D.nastaveni.datum_zavodu || null})});
+      ROCNIK_ZMENEN = false;
+    }
+    for(const klic of [...PRAVIDLA_ZMENENA]){
+      const h = (D.nastaveni.pravidla || {})[klic];
+      await sbDotaz('rpc/planovac_uloz_pravidlo', {method:'POST',
+        body: JSON.stringify({p_klic: klic, p_hodnota: h == null ? '' : String(h)})});
+      PRAVIDLA_ZMENENA.delete(klic);
+    }
   }catch(e){ potize.push('nastavení: ' + e.message); }
 
   if(tl){ tl.disabled = false; tl.textContent = 'Uložit do databáze'; }
@@ -12489,6 +12504,7 @@ function zmenPravidlo(klic, hodnota){
   const v = String(hodnota == null ? '' : hodnota).trim();
   if(v === '') delete D.nastaveni.pravidla[klic];
   else D.nastaveni.pravidla[klic] = (typeof PRAVIDLA_VYCHOZI[klic] === 'string') ? v : Number(v);
+  PRAVIDLA_ZMENENA.add(klic);
   oznacZmenu();
   kresliJakSePocita();
   planZmenen = true; kresliPruhGenerovani();
