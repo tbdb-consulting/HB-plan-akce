@@ -1510,19 +1510,19 @@ body.mobil .chybovka{left:8px;right:8px;transform:none;max-width:none;bottom:8px
   <!-- 8. PŘÍSTUPY -->
   <section class="sekce" id="s-pristupy">
     <div class="karta">
-      <h2>Úrovně přístupu — tabulka urovne_pristupu</h2>
+      <h2>Úrovně přístupu</h2>
       <div class="telo">
-        <p class="popisek">Tři úrovně, se kterými web počítá. Kód se používá v databázi,
-          název a popis vidí lidé. Úroveň jde přejmenovat, přidat i odebrat.</p>
+        <p class="popisek">Tři úrovně, se kterými web počítá. Jen přehled ke čtení: úrovně
+          i jejich práva jsou nastavené přímo v databázi a tady se měnit nedají. Změnu
+          udělá Claude v Supabase. Komu která úroveň patří, se nastavuje níž v Uživatelích.</p>
         <div class="obal-tab"><table class="tab" id="tabUrovne"></table></div>
-        <button class="tl" style="margin-top:10px" title="Přidá další úroveň přístupu. Práva u ní začínají na „žádné"." onclick="pridej('uroven')">+ Přidat úroveň</button>
       </div>
     </div>
 
     <div class="karta">
-      <h2>Co která úroveň smí — tabulka pristupy_oblasti</h2>
+      <h2>Co která úroveň smí</h2>
       <div class="telo">
-        <p class="popisek">Zápis znamená vidět i měnit, čtení jen vidět, žádné vůbec nezobrazit.
+        <p class="popisek">Přehled ke čtení, měnit se tady nedá (viz výše). Zápis znamená vidět i měnit, čtení jen vidět, žádné vůbec nezobrazit.
           Řádek „Telefony, e-maily, čísla účtů" se chová zvlášť — schová citlivé sloupce
           i tomu, kdo jinak Členy part vidí.</p>
         <div class="obal-tab"><table class="tab matice" id="tabMatice"></table></div>
@@ -2326,7 +2326,7 @@ const smiPsat = () => Object.keys(D.prava[platnaUroven()] || {})
                         .some(o => D.prava[platnaUroven()][o] === "zápis");
 
 // Verzi zvedáme ručně při každé změně, čas buildu doplňuje sanitize_public.py.
-const VERZE = "v5.103p";
+const VERZE = "v5.104p";
 const BUILD = "2026-09-19T19:45+02:00";                              // vyplní se ve veřejném buildu
 
 const VEREJNA = true;    // veřejná verze pro GitHub Pages = true
@@ -10633,10 +10633,10 @@ const pravo  = (k, oblast) => (D.prava[k]||{})[oblast] || "žádné";
 
 function kresliUrovne(){
   tabulka('#tabUrovne', [
-    {nadpis:"Kód", pole:"kod", sirka:"130px"},
-    {nadpis:"Název", pole:"nazev", sirka:"210px"},
-    {nadpis:"Pořadí", pole:"poradi", typ:"number", sirka:"90px", trida:"stred"},
-    {nadpis:"Popis", pole:"popis"}
+    {nadpis:"Kód", pole:"kod", sirka:"130px", jenCist:true},
+    {nadpis:"Název", pole:"nazev", sirka:"210px", jenCist:true},
+    {nadpis:"Pořadí", pole:"poradi", sirka:"90px", trida:"stred", jenCist:true},
+    {nadpis:"Popis", pole:"popis", jenCist:true}
   ], D.urovne, ()=>{srovnejPrava();kresliPristupy();}, true, false);
 }
 
@@ -10662,15 +10662,12 @@ function kresliMatici(){
     u.forEach(x=>{
       const v = pravo(x.kod, o.kod);
       const tr = v==="zápis"?"zap":(v==="čtení"?"cti":"nic");
-      h += '<td class="pravo '+tr+'"><select data-u="'+esc(x.kod)+'" data-o="'+esc(o.kod)+'">'
-         + PRAVA.map(pv=>`<option${pv===v?' selected':''}>${pv}</option>`).join('') + '</select></td>';
+      // jen ke čtení: tabulky úrovní a práv v databázi nejsou, práva určují pravidla databáze (v5.104p, 18. 10. 2026)
+      h += '<td class="pravo '+tr+'" style="text-align:center">'+esc(v)+'</td>';
     });
     h += '</tr>';
   });
   t.innerHTML = h + '</tbody>';
-  t.querySelectorAll('select').forEach(el=>{
-    el.onchange = ()=>{ D.prava[el.dataset.u][el.dataset.o] = el.value; kresliMatici(); uplatniPrava(); };
-  });
 }
 
 function kresliUzivatele(){
