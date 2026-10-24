@@ -2326,7 +2326,7 @@ const smiPsat = () => Object.keys(D.prava[platnaUroven()] || {})
                         .some(o => D.prava[platnaUroven()][o] === "zápis");
 
 // Verzi zvedáme ručně při každé změně, čas buildu doplňuje sanitize_public.py.
-const VERZE = "v5.104p";
+const VERZE = "v5.105p";
 const BUILD = "2026-09-19T19:45+02:00";                              // vyplní se ve veřejném buildu
 
 const VEREJNA = true;    // veřejná verze pro GitHub Pages = true
@@ -11384,7 +11384,11 @@ const MAPA = {
           pocet:'pocet', poznamka:'poznamka'}
   },
   uzivatele: {
-    tabulka:'uzivatele', klic:['uid'], konflikt:['uid'], rok:false, jen:['_heslo'],
+    /* uzivatele je od 20. 9. 2026 pohled nad web_osoba se spouštěčem, který umí jen
+       upravit existující účet. ON CONFLICT na pohledu nefunguje (Postgres 42P10), proto
+       jenUpravy: změněné řádky jdou po jednom jako PATCH podle uid, nic se nezakládá
+       ani nemaže – účty zakládá a ruší Keksa v Supabase. *v5.105p, 24. 10. 2026* */
+    tabulka:'uzivatele', klic:['uid'], konflikt:['uid'], rok:false, jen:['_heslo'], jenUpravy:true,
     pole:{uid:'uid', email:'email', jmeno:'jmeno', uroven:'uroven',
           kod_tymu:'kod_tymu', aktivni:'aktivni', poznamka:'poznamka'},
     naJs: r => ({...r, aktivni: r.aktivni === false ? 'ne' : 'ano'}),
@@ -12123,6 +12127,36 @@ async function ulozDoDatabaze(volby){
       if(m.predZapisem){
         const rekla = await m.predZapisem(radky, rok);
         (rekla || []).forEach(t => nedodelky.push(t));
+      }
+      /* Sada jen s úpravami (Přístupy nad pohledem uzivatele): pošle jen řádky, které
+         se od načtení změnily, každý zvlášť jako PATCH podle klíče. Nové a smazané
+         řádky se do databáze nepromítnou a řekne se to v nedodělcích. *v5.105p* */
+      if(m.jenUpravy){
+        const pred = nacteno[sada] || {}, k0 = m.klic[0], sloupec = m.pole[k0];
+        const zmenene = radky.filter(r => r[k0] &&
+          JSON.stringify(snimekRadku(sada, r)) !== JSON.stringify(pred[klicRadku(sada, r)] || null));
+        for(const r of zmenene){
+          const telo = doDb(sada, r, rok);
+          delete telo[sloupec]; delete telo.email;   // klíč a přihlašovací e-mail se tu nemění
+          await sbDotaz(m.tabulka + '?' + sloupec + '=eq.' + encodeURIComponent(r[k0]), {
+            method:'PATCH', headers:{'Prefer':'return=minimal'}, body: JSON.stringify(telo)
+          });
+        }
+        const bezKlice = radky.filter(r => !r[k0]).length;
+        if(bezKlice) nedodelky.push((NAZVY_SAD[sada] || sada) + ': ' + bezKlice + ' nový řádek/řádky se neuložily. '
+          + 'Účet zakládá Keksa v Supabase (Authentication → Users → Add user), pak se tu objeví sám.');
+        const videne = nacteneKlice[sada];
+        if(videne){
+          const ted = new Set(radky.map(r => klicRadku(sada, r)));
+          if([...videne].some(k => !ted.has(k))) nedodelky.push((NAZVY_SAD[sada] || sada)
+            + ': smazaný řádek se v databázi nemaže. Místo smazání přepněte Aktivní na „ne“; účet se ruší v Supabase.');
+        }
+        predUlozenim[sada] = nacteno[sada];
+        nacteno[sada] = {};
+        radky.filter(r => r[k0]).forEach(r => { nacteno[sada][klicRadku(sada, r)] = snimekRadku(sada, r); });
+        poUlozeni[sada] = nacteno[sada];
+        hotovo.push(sada + ' (' + zmenene.length + ' změn)');
+        continue;
       }
       // 1) zápis — nové řádky zvlášť, ať se vrátí jejich id
       let sKlicem = radky.filter(r => m.klic.every(k => r[k] !== undefined && r[k] !== null && r[k] !== ''));
