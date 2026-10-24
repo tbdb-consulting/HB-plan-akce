@@ -209,7 +209,16 @@ button.tl.cerv:hover{background:#F5D8DC;border-color:#A4444E}
    — opravuje se na počítači, u trati se do toho jen kouká. */
 #kartyNocMista, #kartyNocLide{display:none}
 body.mobil #kartyNocMista, body.mobil #kartyNocLide{display:block}
-body.mobil #s-noclehy-mista .obal-tab, body.mobil #s-noclehy-lide .obal-tab{display:none}
+body.mobil #nocMistaSbal .obal-tab{display:none}
+.noc-pocty{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 12px}
+.noc-pocty .noc-dlazdice{flex:1;min-width:220px;border:1px solid var(--linka);border-radius:10px;padding:10px 12px;background:#fff}
+.noc-pocty b.noc-den{display:block;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--olive);margin-bottom:4px}
+.noc-pocty .noc-cislo{font-size:13px;margin-right:10px;white-space:nowrap}
+.noc-pocty button.noc-odkaz{font:inherit;font-size:13px;border:0;background:none;color:var(--vinova);font-weight:800;text-decoration:underline;cursor:pointer;padding:0}
+.noc-nastroje{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
+.noc-nastroje .tl.zapnuto{background:var(--vinova);border-color:var(--vinova);color:#fff}
+.noc-hromadne{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto;font-size:12.5px;font-weight:700}
+.noc-hromadne select{font:inherit;font-weight:400;padding:4px 8px;border:1px solid var(--linka);border-radius:8px;background:#fff}
 .nocKarta{background:var(--bila,#fff);border:1px solid var(--linka);border-radius:11px;
   padding:11px 13px;margin-bottom:10px;box-shadow:var(--stin)}
 .nocKarta h4{margin:0 0 2px;font-size:15px;line-height:1.25}
@@ -1340,34 +1349,45 @@ th.ft-razeni:hover{color:var(--tmava)}
 
   <!-- 6. NOCLEHY MÍSTA -->
   <section class="sekce" id="s-noclehy-mista">
+    <!-- Noclehy na jedné záložce (Keksa 24. 10. 2026, v5.112p): přehled po nocích, kdo kde spí, místa.
+         Kdo kde spí se bere ze Členů grup (nocleh_patek, nocleh_sobota) – jedno místo pravdy. -->
     <div class="karta">
-      <h2>Noclehy — místa</h2>
+      <h2>Přehled po nocích</h2>
       <div class="telo">
-        <div id="kartyNocMista"></div>
-        <div class="obal-tab"><table class="tab" id="tabNocMista"></table></div>
-        <div id="souhrnNoclehu" style="margin-top:12px"></div>
-        <button class="tl" style="margin-top:10px" title="Přidá prázdný řádek pro další místo noclehu." onclick="pridej('nocMista')">+ Přidat nocleh</button>
+        <div id="nocPocty" class="noc-pocty"></div>
+        <div class="obal-tab"><div id="souhrnNoclehu"></div></div>
+      </div>
+    </div>
+    <div class="karta">
+      <h2>Kdo kde spí</h2>
+      <div class="telo">
+        <p class="popisek">Jeden řádek = jeden člověk z Členů grup. Nocleh vyberete ze seznamu míst té noci — u místa je vidět,
+          kolik lůžek zbývá. Prázdné = ještě nevyřešeno, „neřeší se“ = vlastní nocleh nebo se neřeší.
+          Zapisuje se do stejných údajů jako v Členech grup.</p>
+        <div class="nastroje noc-nastroje">
+          <button class="tl" id="nocJenBez" data-filtr onclick="nocRychlyFiltr()">Jen nevyřešení</button>
+          <span class="noc-hromadne">Zaškrtnutým:
+            <select id="nocHromNoc" data-filtr onchange="naplnNocHromMisto()"><option value="pátek">pátek</option><option value="sobota">sobota</option></select>
+            <select id="nocHromMisto" data-filtr></select>
+            <button class="tl" onclick="nocPridelVybranym()">Přidělit</button>
+            <span id="nocVybrano" class="popisek"></span></span>
+        </div>
+        <div class="obal-tab lepivaHlava"><table class="tab" id="tabNocKdo"></table></div>
+      </div>
+    </div>
+    <div class="karta">
+      <h2>Místa — adresy, kapacity, kontakty</h2>
+      <div class="telo">
+        <details class="sbal-obl" id="nocMistaSbal">
+          <summary>Rozbalit místa noclehu</summary>
+          <div id="kartyNocMista"></div>
+          <div class="obal-tab"><table class="tab" id="tabNocMista"></table></div>
+          <button class="tl" style="margin-top:10px" title="Přidá prázdný řádek pro další místo noclehu." onclick="pridej('nocMista')">+ Přidat nocleh</button>
+        </details>
       </div>
     </div>
   </section>
 
-  <!-- 7. NOCLEHY LIDÉ -->
-  <section class="sekce" id="s-noclehy-lide">
-    <div class="karta">
-      <h2>Noclehy — lidé (tabulka noclehy_lide)</h2>
-      <div class="telo">
-        <p class="popisek">Kdo kde spí kterou noc. Prázdné místo znamená vlastní nocleh — doma nebo
-          v dodávce. Volba „neřeší se" je pro lidi, u kterých nocleh vůbec neřešíme.</p>
-        <div id="obsazenost" style="margin-bottom:14px"></div>
-        <div id="kartyNocLide"></div>
-        <div class="obal-tab"><table class="tab" id="tabNocLide"></table></div>
-        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="tl" title="Přidá prázdný řádek pro dalšího nocležníka." onclick="pridej('nocLide')">+ Přidat nocležníka</button>
-          <button class="tl" title="Sestaví seznam nocležníků podle sloupců nocleh pátek a nocleh sobota u členů part." onclick="doplnZeClenu()">Doplnit podle sloupců nocleh u členů</button>
-        </div>
-      </div>
-    </div>
-  </section>
 
 
   <!-- 9. TRIČKA -->
@@ -2397,8 +2417,7 @@ const OBLASTI = [
   // a nemá smysl pro ně vést v databázi vlastní řádek práv.
   {kod:"predavky",       nazev:"Předávky",                   sekce:["s-predavky","s-useky"]},
   {kod:"nastaveni",      nazev:"Nastavení",                  sekce:["s-nastaveni"]},
-  {kod:"noclehy_adresy", nazev:"Noclehy — místa",            sekce:["s-noclehy-mista"]},
-  {kod:"noclehy_lide",   nazev:"Noclehy — lidé",             sekce:["s-noclehy-lide"]},
+  {kod:"noclehy_adresy", nazev:"Noclehy",                    sekce:["s-noclehy-mista"]},
   {kod:"tricka",         nazev:"Oblečení, sklad a objednávky", sekce:["s-tricka"]},
   {kod:"pristupy",       nazev:"Přístupy k webu",            sekce:["s-pristupy"]},
   {kod:"fotky",          nazev:"Fotoarchiv",                 sekce:["s-fotky"]}
@@ -2412,7 +2431,7 @@ const smiPsat = () => Object.keys(D.prava[platnaUroven()] || {})
                         .some(o => D.prava[platnaUroven()][o] === "zápis");
 
 // Verzi zvedáme ručně při každé změně, čas buildu doplňuje sanitize_public.py.
-const VERZE = "v5.111p";
+const VERZE = "v5.112p";
 // Čas buildu dřív zapisoval sanitize_public.py; od září se nahrává bez něj a zůstal tu 19. 9. 2026.
 // Prázdný BUILD = ukáže se čas nahrání souboru, který posílá server (document.lastModified), v5.108p.
 const BUILD = "";
@@ -2608,7 +2627,7 @@ const ZALOZKY = [
   {id:"s-tymy",          nazev:"Grupy",              napoveda:"Seznam grup, jejich barvy a způsob dopravy."},
   {id:"s-clenove",       nazev:"Členové grup",       napoveda:"Lidé v grupách a jejich kontakty."},
   {id:"s-predavky",      nazev:"Předávky",           napoveda:"Místa předávek, souřadnice, vzdálenosti a časy mezi nimi."},
-  {id:"s-noclehy-mista", nazev:"Noclehy — místa",    napoveda:"Ubytování, kapacity a stav rezervací."},
+  {id:"s-noclehy-mista", nazev:"Noclehy",            napoveda:"Kdo kde spí, obsazenost po nocích a místa ubytování."},
   {id:"s-tricka",        nazev:"Oblečení",           napoveda:"Sortiment podle druhu a výrobce, velikosti odvozené z velikostní řady, sklad a objednávky u dodavatele po vlnách."},
   {id:"s-pristupy",      nazev:"Přístupy",           napoveda:"Tři úrovně přístupu k webu, co která smí, a seznam uživatelů."},
   {id:"s-nastaveni",     nazev:"Nastavení",          napoveda:"Aktivní ročník, datum závodu a další nastavení plánovače."},
@@ -2733,7 +2752,7 @@ function prepni(id){
   if(id==="s-fotky")     nactiFotky();
   if(id==="s-vzkazy")    nactiVzkazy();
   if(id==="s-tricka") kresliTricka();
-  if(id==="s-noclehy-lide") kresliNocLide();
+  if(id==="s-noclehy-mista") kresliNocleh();
   if(id==="s-clenove") kresliClenove();
   if(id==="s-useky") kresliUseky();
 }
@@ -6080,7 +6099,7 @@ function poZmeneClena(r){
     r.sef = 'ne';
     hlaska((r.jmeno || 'Člověk') + ' je teď nezařazený, šéfovský příznak jsem sundal.');
   }
-  kresliClenove(); kresliPaletu(); kresliPlan(); kresliTymy(); naplnFiltrPart(); kresliSouhrnNoclehu();
+  kresliClenove(); kresliPaletu(); kresliPlan(); kresliTymy(); naplnFiltrPart(); kresliSouhrnNoclehu(); kresliNocKdo();
   if($('#s-podrobny').classList.contains('videt')) kresliPodrobny();
 }
 
@@ -6633,9 +6652,8 @@ function kresliKartyNocMista(){
 }
 
 /* ---------- součet lůžek a obsazenost ----------
-   Kdo kde spí, se vede na dvou místech: v tabulce noclehy_lide a u členů grup
-   v polích nocleh_patek a nocleh_sobota. Bere se to, kde pro danou noc něco je;
-   když jsou obsazená obě, platí noclehy_lide a druhý zdroj se jen připomene. */
+   Kdo kde spí, se vede u členů grup v polích nocleh_patek a nocleh_sobota.
+   Tabulka noclehy_lide se od v5.112p nepoužívá (zůstává v databázi jako archiv). */
 const POLE_NOCI = {"pátek":"nocleh_patek", "sobota":"nocleh_sobota"};
 
 function obsazenostNoci(noc){
@@ -6646,15 +6664,14 @@ function obsazenostNoci(noc){
   };
   // místo patřící jiné noci se do téhle noci nepočítá
   const patriSem = k => { const m = (D.nocMista||[]).find(x=>x.kod===k); return !m || !m.noc || m.noc === noc; };
-  (D.nocLide||[]).forEach(x=>{ if(x.noc===noc && x.kod_noclehu) pridej(zLidi, x.kod_noclehu, x.kod_tymu, x.jmeno); });
+
   const pole = POLE_NOCI[noc];
   if(pole) zivi().forEach(c=>{
     const k = c[pole];
     if(k && k !== NERESI && patriSem(k)) pridej(zClenu, k, c.kod_tymu, c.jmeno);
   });
   const pocet = o => Object.values(o).reduce((a,x)=>a+x.length,0);
-  return pocet(zLidi) ? {kde: zLidi, zdroj: 'noclehy — lidé', jinde: pocet(zClenu)}
-                      : {kde: zClenu, zdroj: 'členové grup', jinde: 0};
+  return {kde: zClenu, zdroj: 'členové grup', jinde: 0};   // od v5.112p jen Členové grup (noclehy_lide se nepoužívá)
 }
 
 // „G1 Martin Běhal, Jan Riedl · G3 Pepička" — kdo na tom místě tu noc spí
@@ -6744,98 +6761,83 @@ function kresliSouhrnNoclehu(){
   cil.innerHTML = h;
 }
 
-/* ---------- 7. noclehy lidé ---------- */
-function kresliNocLide(){
-  tabulka('#tabNocLide', [
-    {nadpis:"Noc", pole:"noc", typ:"select", moznosti:NOCI, sirka:"120px"},
-    {nadpis:"Místo", pole:"kod_noclehu", typ:"select", moznosti:volbyNoclehu, sirka:"150px"},
-    {nadpis:"Jméno", pole:"jmeno", sirka:"230px"},
-    {nadpis:"Grupa", pole:"kod_tymu", typ:"select", moznosti:(r)=>volbyGrup(true,false,r&&r.kod_tymu), sirka:"165px"},
-    {nadpis:"Poznámka", pole:"poznamka"}
-  ], D.nocLide, ()=>{kresliNocLide();kresliSouhrnNoclehu();}, true);
-  kresliKartyNocLide();
-
-  let h = '';
-  NOCI.forEach(noc=>{
-    h += '<div style="margin-bottom:8px"><b style="font-size:12.5px">'+noc+'</b>'
-       + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:5px">';
-    D.nocMista.forEach(m=>{
-      const n = D.nocLide.filter(x=>x.noc===noc && x.kod_noclehu===m.kod).length;
-      const kap = m.kapacita||0;
-      const pct = kap ? Math.min(100, Math.round(n/kap*100)) : 0;
-      h += '<div style="flex:1;min-width:170px;background:var(--papir);border:1px solid var(--linka);'
-         + 'border-radius:9px;padding:7px 10px">'
-         + '<div style="font-size:12px;font-weight:800">'+esc(m.kod)+'</div>'
-         + '<div style="font-size:11.5px;color:var(--pisek)">'+n+' z '+kap+' lůžek</div>'
-         + '<div class="pruh'+(n>kap?' plno':'')+'"><i style="width:'+pct+'%"></i></div></div>';
-    });
-    const vlastni = D.nocLide.filter(x=>x.noc===noc && !x.kod_noclehu).length;
-    const neresi  = D.nocLide.filter(x=>x.noc===noc && x.kod_noclehu===NERESI).length;
-    h += '<div style="flex:1;min-width:170px;background:var(--papir);border:1px dashed var(--linka);'
-       + 'border-radius:9px;padding:7px 10px"><div style="font-size:12px;font-weight:800">vlastní nocleh</div>'
-       + '<div style="font-size:11.5px;color:var(--pisek)">'+vlastni+' lidí</div></div>'
-       + '<div style="flex:1;min-width:170px;background:var(--papir);border:1px dashed var(--linka);'
-       + 'border-radius:9px;padding:7px 10px"><div style="font-size:12px;font-weight:800">neřeší se</div>'
-       + '<div style="font-size:11.5px;color:var(--pisek)">'+neresi+' lidí</div></div>';
-    h += '</div></div>';
-  });
-  $('#obsazenost').innerHTML = h;
+/* ---------- 7. Noclehy: kdo kde spí (Keksa 24. 10. 2026, v5.112p) ----------
+   Řádek = člověk ze Členů grup (zivi()), nocleh se vybírá ze seznamu míst dané noci
+   s volnými lůžky. Zapisuje se přímo do D.clenove (nocleh_patek / nocleh_sobota),
+   takže Členové grup a Noclehy ukazují totéž. Nahoře počty po nocích, hromadné přidělení. */
+let nocJenNevyreseni = false, nocRadky = [];
+const misto = k => (D.nocMista || []).find(m => m.kod === k);
+function volnoNaMiste(m, noc){
+  const kap = +m.kapacita || 0; if(!kap) return null;
+  return kap - ((obsazenostNoci(noc).kde[m.kod] || []).length);
 }
-
-/* Lidé na telefonu: ne řádky, ale seznam po nocích a místech. Tabulka „noc,
-   místo, jméno, grupa" se na displeji čte špatně — noc i místo se v ní opakují
-   u každého řádku a jméno, kvůli kterému se tam člověk dívá, zůstane vzadu. */
-function kresliKartyNocLide(){
-  const cil = $('#kartyNocLide');
-  if(!cil) return;
-  if(!mobil){ cil.innerHTML = ''; return; }
-  const nazevMista = k => {
-    if(!k) return 'vlastní nocleh';
-    if(k === NERESI) return 'neřeší se';
-    const m = (D.nocMista || []).find(x => x.kod === k);
-    return m ? (m.nazev || m.kod) : k;
-  };
-  let h = '<p class="nocPoznamkaKUprave">Ke čtení. Opravuje se na počítači.</p>';
-  NOCI.forEach(noc => {
-    const vNoci = (D.nocLide || []).filter(x => x.noc === noc);
-    h += '<div class="nocNoc">' + esc('noc na ' + noc) + ' · ' + vNoci.length + ' lidí</div>';
-    if(!vNoci.length){ h += '<div class="nocKarta"><div class="nocPodnadpis">nikdo</div></div>'; return; }
-    const podleMista = {};
-    vNoci.forEach(x => { const k = x.kod_noclehu || ''; (podleMista[k] = podleMista[k] || []).push(x); });
-    Object.keys(podleMista).sort((a,b)=>nazevMista(a).localeCompare(nazevMista(b),'cs')).forEach(k => {
-      const lide = podleMista[k].slice().sort((a,b)=>
-        String(a.kod_tymu||'').localeCompare(String(b.kod_tymu||''),'cs')
-        || String(a.jmeno||'').localeCompare(String(b.jmeno||''),'cs'));
-      h += '<div class="nocKarta"><h4>' + esc(nazevMista(k)) + '</h4>'
-        + '<div class="nocPodnadpis">' + lide.length + ' lidí</div>';
-      const podleGrupy = {};
-      lide.forEach(x => { const g = x.kod_tymu || '—'; (podleGrupy[g] = podleGrupy[g] || []).push(x.jmeno || ''); });
-      Object.keys(podleGrupy).sort().forEach(g => {
-        h += '<div class="nocRadek"><span class="nocCo">' + esc(g) + '</span>'
-          + '<span class="nocHodnota">' + esc(podleGrupy[g].filter(Boolean).join(', ')) + '</span></div>';
-      });
-      h += '</div>';
-    });
-  });
-  cil.innerHTML = h;
+function volbyNoci(noc, r){
+  const pole = POLE_NOCI[noc], ted = r ? r[pole] : '';
+  const mista = (D.nocMista || []).filter(m => !m.noc || m.noc === noc);
+  const v = [{v:'', t:'— nevyřešeno —'}, {v:NERESI, t:'neřeší se / vlastní'}]
+    .concat(mista.map(m => { const z = volnoNaMiste(m, noc);
+      return {v:m.kod, t:(m.nazev || m.kod) + (z == null ? '' : (z < 0 ? ' · přeplněno o ' + (-z) : ' · volno ' + z))}; }));
+  if(ted && !v.some(x => x.v === ted)) v.push({v:ted, t:(misto(ted) ? (misto(ted).nazev || ted) : ted) + ' (jiná noc)'});
+  return v;
 }
-function doplnZeClenu(){
-  let pridano = 0;
-  D.clenove.forEach(c=>{
-    NOCI.forEach(noc=>{
-      const kod = noc==='pátek' ? c.nocleh_patek : c.nocleh_sobota;
-      if(!kod) return;
-      if(D.nocLide.some(x=>x.noc===noc && x.jmeno===c.jmeno)) return;
-      D.nocLide.push({noc, kod_noclehu:kod, jmeno:c.jmeno, kod_tymu:c.kod_tymu, poznamka:""});
-      pridano++;
-    });
-  });
-  kresliNocLide();
-  hlaska(pridano ? ('Doplněno '+pridano+' nocležníků') : 'Nic k doplnění — u členů nejsou vyplněné noclehy');
+function kresliNocleh(){ kresliNocMista(); kresliNocKdo(); }
+function kresliNocPocty(){
+  const el = $('#nocPocty'); if(!el) return;
+  const lide = zivi();
+  el.innerHTML = NOCI.map(noc => {
+    const p = POLE_NOCI[noc];
+    const nevy = lide.filter(c => !c[p]).length, ner = lide.filter(c => c[p] === NERESI).length;
+    const ubyt = lide.length - nevy - ner;
+    return '<div class="noc-dlazdice"><b class="noc-den">' + esc(noc) + '</b>'
+      + '<span class="noc-cislo">v ubytování <b>' + ubyt + '</b></span>'
+      + '<span class="noc-cislo">neřeší se <b>' + ner + '</b></span>'
+      + '<span class="noc-cislo">nevyřešeno ' + (nevy ? '<button class="noc-odkaz" data-filtr onclick="nocRychlyFiltr(true)">' + nevy + '</button>' : '<b>0</b>') + '</span></div>';
+  }).join('');
 }
-
-
-
+function nocRychlyFiltr(zapnout){
+  nocJenNevyreseni = (zapnout === true) ? true : !nocJenNevyreseni;
+  kresliNocKdo();
+  if(nocJenNevyreseni){ const t = $('#tabNocKdo'); if(t) t.closest('.karta').scrollIntoView({behavior:'smooth', block:'start'}); }
+}
+function naplnNocHromMisto(){
+  const s = $('#nocHromMisto'); if(!s) return;
+  const bylo = s.value, noc = ($('#nocHromNoc') || {}).value || NOCI[0];
+  s.innerHTML = volbyNoci(noc).map(o => '<option value="' + esc(o.v) + '">' + esc(o.t) + '</option>').join('');
+  if([...s.options].some(o => o.value === bylo)) s.value = bylo;
+}
+function kresliNocKdo(){
+  const t = $('#tabNocKdo'); if(!t) return;
+  kresliNocPocty(); kresliSouhrnNoclehu(); naplnNocHromMisto();
+  const tl = $('#nocJenBez'); if(tl) tl.classList.toggle('zapnuto', nocJenNevyreseni);
+  const grupa = k => { const g = (D.tymy || []).find(x => x.kod === k); return g ? (g.kod + (g.stitek ? ' ' + g.stitek : '')) : (k || '—'); };
+  const poradiG = k => { const g = (D.tymy || []).find(x => x.kod === k); return g ? (+g.poradi || 999) : 1000; };
+  nocRadky = zivi()
+    .filter(c => !nocJenNevyreseni || NOCI.some(n => !c[POLE_NOCI[n]]))
+    .sort((a, b) => poradiG(a.kod_tymu) - poradiG(b.kod_tymu) || String(a.jmeno || '').localeCompare(String(b.jmeno || ''), 'cs'));
+  tabulka(t, [
+    {nadpis:'', sirka:'34px', pevnaSirka:true, trida:'stred', html:(r, i) => '<input type="checkbox" class="nocVyber" data-n="' + i + '" title="Zaškrtnout pro hromadné přidělení">'},
+    {nadpis:'Grupa', sirka:'150px', html:r => esc(grupa(r.kod_tymu))},
+    {nadpis:'Jméno', sirka:'200px', html:r => '<b>' + esc(r.jmeno || '') + '</b>'},
+    {nadpis:'Pátek', pole:'nocleh_patek', typ:'select', sirka:'270px', moznosti:r => volbyNoci('pátek', r)},
+    {nadpis:'Sobota', pole:'nocleh_sobota', typ:'select', sirka:'270px', moznosti:r => volbyNoci('sobota', r)},
+    {nadpis:'Poznámka', pole:'poznamka', viceradkove:true, maxRadky:2}
+  ], nocRadky, () => { kresliNocKdo(); }, false, false, D.clenove);
+  const pocitej = () => { const n = t.querySelectorAll('input.nocVyber:checked').length; const s = $('#nocVybrano'); if(s) s.textContent = n ? 'zaškrtnuto ' + n : ''; };
+  t.querySelectorAll('input.nocVyber').forEach(c => c.onchange = pocitej); pocitej();
+  if(!nocRadky.length) t.innerHTML = '<tbody><tr><td class="stred" style="padding:14px;color:var(--pisek)">'
+    + (nocJenNevyreseni ? 'Všichni mají nocleh vyřešený.' : 'V Členech grup zatím nikdo není.') + '</td></tr></tbody>';
+}
+function nocPridelVybranym(){
+  if(!smiPsat()){ hlaska('Na tohle nemáte právo — noclehy jdou jen číst.'); return; }
+  const t = $('#tabNocKdo'), noc = $('#nocHromNoc').value, kam = $('#nocHromMisto').value;
+  const vybrani = [...t.querySelectorAll('input.nocVyber:checked')].map(c => nocRadky[+c.dataset.n]).filter(Boolean);
+  if(!vybrani.length){ hlaska('Nejdřív zaškrtněte lidi v prvním sloupci.'); return; }
+  vybrani.forEach(c => { c[POLE_NOCI[noc]] = kam; zrevidovano(c); });
+  oznacZmenu(); kresliNocKdo();
+  const m = misto(kam);
+  hlaska(vybrani.length + ' ' + (vybrani.length === 1 ? 'člověk' : vybrani.length < 5 ? 'lidé' : 'lidí') + ' → ' + noc + ': '
+    + (kam === '' ? 'nevyřešeno' : (m ? (m.nazev || kam) : kam)) + '. Uloží se při uložení do databáze.');
+}
 
 /* ---------- vzdálenosti mezi předávkami a čas z volného textu ---------- */
 // z tabulky vzdalenosti (HB26). Uložená je jen horní polovina matice, opačný směr
@@ -9519,6 +9521,7 @@ const FT_TABULKY = [
       'Smí se autem':'vyber','Povrch':'vyber','Tempo':'text','Značení':'text','Co na tom je podle OSM':'text' } },
   { id:'noclehy-mista', sel:'#tabNocMista', sloupce:{ 'Kód':'text','Název':'text','Noc':'vyber','U předávky':'cislo','Adresa':'text',
       'Kapacita':'cislo','Pokoje':'text','Kontakt':'text','Telefon':'text','Cena':'text','Platba':'vyber','Rezervace':'text','Poznámka':'text' } },
+  { id:'noc-kdo', sel:'#tabNocKdo', sloupce:{ 'Grupa':'vyber','Jméno':'text','Pátek':'vyber','Sobota':'vyber','Poznámka':'text' } },
   { id:'uzivatele', sel:'#tabUzivatele', sloupce:{ 'E-mail':'text','Jméno':'text','Úroveň':'vyber','Grupa':'vyber','Aktivní':'vyber','Poznámka':'text' } },
 ];
 const FT_KLIC = 'hb_filtry_tabulek';
@@ -11567,10 +11570,6 @@ function pridej(co){
     novy = {email:"",jmeno:"",uroven:(D.urovne[0]||{}).kod||"",kod_tymu:"",aktivni:"ano",poznamka:""};
     D.uzivatele.push(novy); kam = 'uživatel'; kresliUzivatele();
   }
-  if(co==='nocLide'){
-    novy = {noc:"pátek",kod_noclehu:"",jmeno:"",kod_tymu:"",poznamka:""};
-    D.nocLide.push(novy); kam = 'nocležník'; kresliNocLide();
-  }
 
   if(!novy) return;
   novy._nove = true;
@@ -11582,7 +11581,6 @@ function pridej(co){
   if(co==='objednavka') kresliObjednavky();
   if(co==='uroven') kresliPristupy();
   if(co==='uzivatel') kresliUzivatele();
-  if(co==='nocLide') kresliNocLide();
   hlaska('Přidán prázdný řádek — ' + kam + '. Je zvýrazněný žlutě, dokud ho neuložíte.');
 }
 
@@ -11883,11 +11881,6 @@ const MAPA = {
           kapacita:'kapacita', pokoje:'pokoje', kontakt:'kontakt', telefon:'telefon',
           cena:'cena', platba:'platba', rezervace:'rezervace', poznamka:'poznamka',
           predavka:'predavka'}
-  },
-  nocLide: {
-    tabulka:'noclehy_lide', klic:['id'], konflikt:['id'], rok:true, vzdyUkladat:true, jen:[],
-    pole:{id:'id', noc:'noc', kod_noclehu:'kod_noclehu', clen_id:'clen_id',
-          jmeno:'jmeno', kod_tymu:'kod_tymu', poznamka:'poznamka'}
   },
   velikosti: {
     tabulka:'tricka_velikosti', klic:['rada','kod'], konflikt:['rok','rada','kod'], rok:true,
@@ -13590,9 +13583,9 @@ const MOBIL_POLE = {
   /* Noclehy mají dvě tabulky — místa a souhrn obsazení; sloupce obou jsou
      v jednom seznamu. Keksa u nich poznamenal, že celá stránka chce na telefon
      vlastní rozvržení, ne jen užší tabulku — zatím se jen ořezává. */
-  's-noclehy-mista': ['Název','Noc','U předávky','Adresa','Mapa','Telefon','Pokoje',
-                      'Kapacita','Kontakt','Místo','Lůžek','Obsazeno','Kdo tam spí'],
-  's-noclehy-lide':  ['Noc','Místo','Jméno','Grupa']
+  's-noclehy-mista': ['Jméno','Pátek','Sobota','Grupa',          // Kdo kde spí (v5.112p)
+                      'Název','Noc','U předávky','Adresa','Mapa','Telefon','Pokoje',
+                      'Kapacita','Kontakt','Místo','Lůžek','Obsazeno','Kdo tam spí']
 };
 // Na telefonu se nabízejí jen záložky, které v MOBIL_POLE jsou.
 const MOBIL_ZALOZKY = Object.keys(MOBIL_POLE);
@@ -13640,7 +13633,7 @@ function nastavZobrazeni(chciMobil){
   kresliNav(); kresliStavPrihlaseni(); hlidejOtevrenou(); zmerHlavicku();
   kresliPodrobny();                      // na mobilu má jinou sadu sloupců
   // noclehy mají na telefonu vlastní rozvržení, ne jen užší tabulku (v5.85)
-  kresliNocMista(); kresliNocLide();
+  kresliNocleh();
   hlaska(mobil ? 'Mobilní zobrazení' : 'Plné zobrazení');
 }
 function prepniZobrazeni(){ nastavZobrazeni(!mobil); }
@@ -13657,7 +13650,7 @@ function odemkniVse(){
 function vseKresli(){
   kresliTodo(); naplnRucne();
   kresliNastaveni(); kresliTymy(); naplnFiltrPart(); kresliClenove();
-  kresliPredavky(); kresliNocMista(); kresliNocLide(); kresliPlan(); kresliPodrobny();
+  kresliPredavky(); kresliNocleh(); kresliPlan(); kresliPodrobny();
   kresliPristupy(); kresliTricka(); kresliVerzi(); uplatniPrava();
 }
 /* Zapečená data měla původně jedinou roli: být loňským vzorem, ze kterého se
