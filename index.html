@@ -2393,6 +2393,16 @@ const BARVA_STAVU = {"plán":"#66713E","nepotvrzeno":"#D08C3A",
 // zůstává kvůli starším datům a hláškám; zamykání s ním už nesouvisí
 const STAV_ZAMCENO = "potvrzeno";
 const ROKY = ["HB19","HB20","HB21","HB22","HB23","HB24","HB25","HB26","HB27"];
+/* Ročníky se od v5.114p doplňují z tabulky rocnik (zakládá je administrace webu,
+   Nastavení ročníku → Založit ročník). Seznam výše zůstává jako záloha bez spojení.
+   Mění se na místě, takže všechna místa, která ROKY používají, vidí nové ročníky. */
+async function doplnRokyZDatabaze(dotaz){
+  try {
+    const r = await dotaz("rocnik?select=rok&order=rok");
+    const nove = [...new Set(ROKY.concat(r.map(x => x.rok), [D.nastaveni.aktivni_rok]).filter(x => /^HB\d{2}$/.test(x || "")))].sort();
+    ROKY.splice(0, ROKY.length, ...nove);
+  } catch(e){ /* zůstane seznam z kódu */ }
+}
 /* „Loňsko" je ročník o jeden zpátky od toho, který se právě plánuje. Dřív bylo
    všude natvrdo HB25 — v popiscích i v kódu. Až se přepne aktivní ročník, tlačítka
    by pořád nabízela HB25 a lhala by. Vzor si proto vede vlastní ročník (D.vzorRok)
@@ -2440,7 +2450,7 @@ const smiPsat = () => Object.keys(D.prava[platnaUroven()] || {})
                         .some(o => D.prava[platnaUroven()][o] === "zápis");
 
 // Verzi zvedáme ručně při každé změně, čas buildu doplňuje sanitize_public.py.
-const VERZE = "v5.113p";
+const VERZE = "v5.114p";
 // Čas buildu dřív zapisoval sanitize_public.py; od září se nahrává bez něj a zůstal tu 19. 9. 2026.
 // Prázdný BUILD = ukáže se čas nahrání souboru, který posílá server (document.lastModified), v5.108p.
 const BUILD = "";
@@ -12421,6 +12431,7 @@ async function nactiZDatabaze(){
       PRAVIDLA_ZMENENA.clear(); ROCNIK_ZMENEN = false;
       vstupyZPravidel(); }
   }catch(e){ hlaseni.push('nastavení: ' + e.message); }
+  await doplnRokyZDatabaze(sbDotaz);
   doplnCasyBezcu();          // časy běžců se berou z HB25, ne z toho, co přišlo z databáze
   // velikosti triček z minulých ročníků – pro historii podílů a přípravu nového ročníku (v5.110p)
   try { D.velikostiHist = await sbDotaz('tricka_velikosti?select=rok,rada,kod,varka1,varka2,varka3&rok=neq.' + encodeURIComponent(rok)); }
@@ -12651,6 +12662,7 @@ async function nactiVerejnaData(){
       PRAV = slozPravidla('HB');
     }
   }catch(e){ /* zůstane zapečený ročník */ }
+  await doplnRokyZDatabaze(vezmi);
 
   /* Pohledy se stahují najednou, ne jeden po druhém. Na mobilních datech je
      každý dotaz vlastní cesta tam a zpátky; šest za sebou znamenalo, že se
