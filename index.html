@@ -741,6 +741,30 @@ details.sbal-obl[open] > summary{margin-bottom:8px}
 #s-tricka .karta:not(.sbalena) > h2 .sbal-udaj{display:none}
 .sbal-vse{margin-left:auto;display:flex;gap:6px}
 .sbal-vse button{font:inherit;font-size:12.5px;border:1px solid var(--linka);background:#fff;color:var(--tmava);border-radius:8px;padding:4px 10px;cursor:pointer}
+/* Filtry a řazení nad tabulkami (v5.109p) */
+.tab.ft tbody tr:nth-child(even){background:inherit}
+.tab.ft tbody tr.ft-sudy{background:#FCFAF7}
+.tab.ft tbody tr:hover{background:#F6F1E9}
+.tab tr.ft-radek th{background:#EFEBE1;padding:4px 5px;text-transform:none;letter-spacing:0;font-weight:400}
+/* řádek filtrů se lepí pod řádek nadpisů (jeho výšku si tabulka zapíše do --ftHlava) */
+.podrobnyTab thead tr.ft-radek th{top:calc(var(--hlavicka,92px) + var(--listaVyska,47px) + var(--ftHlava,32px))}
+.obal-tab.lepivaHlava table.tab thead tr.ft-radek th{top:var(--ftHlava,32px)}
+.ft-pole{display:flex;gap:3px}
+.ft-pole input{width:100%;min-width:0;font:inherit;font-size:12px;padding:3px 5px;border:1px solid var(--linka);border-radius:6px;background:#fff;color:var(--tmava)}
+.ft-vyber{width:100%;font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--linka);border-radius:6px;background:#fff;color:var(--pisek);text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ft-vyber.ft-ma{color:#fff;background:var(--vinova);border-color:var(--vinova)}
+.ft-nabidka{position:fixed;z-index:9000;background:#fff;border:1px solid var(--linka);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.18);
+  padding:8px 10px;max-height:320px;overflow:auto;min-width:200px;max-width:260px;font-size:13px}
+.ft-nabidka label{display:flex;gap:6px;align-items:center;padding:3px 0;cursor:pointer;color:var(--tmava)}
+th.ft-razeni{cursor:pointer;user-select:none}
+th.ft-razeni:hover{color:var(--tmava)}
+.ft-info{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--pisek);margin:0 0 6px}
+.ft-info:empty{display:none}
+.ft-zapnuto{color:var(--vinova);font-weight:700}
+.ft-tl{font:inherit;font-size:12.5px;border:1px solid var(--linka);background:#fff;color:var(--tmava);border-radius:8px;padding:3px 10px;cursor:pointer}
+.ft-panel{width:100%;display:grid;gap:6px;padding:8px;border:1px solid var(--linka);border-radius:10px;background:#fff}
+.ft-panel label{display:grid;gap:2px;font-weight:700;color:var(--tmava);font-size:12px}
+@media print{.ft-radek,.ft-info{display:none!important}}
 </style>
 </head>
 <body data-build="verejna">
@@ -2377,7 +2401,7 @@ const smiPsat = () => Object.keys(D.prava[platnaUroven()] || {})
                         .some(o => D.prava[platnaUroven()][o] === "zápis");
 
 // Verzi zvedáme ručně při každé změně, čas buildu doplňuje sanitize_public.py.
-const VERZE = "v5.108p";
+const VERZE = "v5.109p";
 // Čas buildu dřív zapisoval sanitize_public.py; od září se nahrává bez něj a zůstal tu 19. 9. 2026.
 // Prázdný BUILD = ukáže se čas nahrání souboru, který posílá server (document.lastModified), v5.108p.
 const BUILD = "";
@@ -5665,7 +5689,8 @@ function kresliPodrobny(){
     if(i>0 && x.parta!==u[i-1].parta) radky[i].classList.add('novaGrupa');
   });
 
-  const filtrovano = (fp||ft||fk||fs);
+  // fp/ft/fs/fpr jsou množiny – prázdná množina je v JS pravdivá, proto .size (oprava v5.109p)
+  const filtrovano = !!(fp.size || ft.size || fk || fs.size || fpr.size || fn);
   $('#stavPodrobny').textContent = 'zobrazeno ' + u.length + ' z ' + D.ukoly.length + ' úkolů'
     + (filtrovano ? ' · ' + new Set(u.map(x=>x.parta)).size + ' grup' : '');
 }
@@ -9248,6 +9273,242 @@ function zarizSbalovaniObleceni(){
       .observe(s, { childList: true, subtree: true });
   }
 }
+/* ---------- Filtry a řazení nad tabulkami (Keksa 24. 10. 2026, v5.109p) ----------
+   Jeden mechanismus pro všechny tabulky: pod hlavičkou řádek filtrů, klik na nadpis řadí,
+   nad tabulkou „Zobrazeno X z Y · Zrušit filtry“. Filtry a řazení jen schovávají
+   a přeskládávají řádky v DOM — data, indexy (data-i) ani ukládání se nemění
+   (stejný princip jako omezPohyby). Hodnota buňky se čte z toho, co je vidět:
+   vybraná položka selectu, text v políčku, zaškrtnutí, jinak text buňky.
+   Tabulky se zapínají v FT_TABULKY; po každém překreslení (innerHTML) se filtr
+   obnoví sám přes MutationObserver. Volby si pamatuje prohlížeč (hb_filtry_tabulek). */
+const FT_TABULKY = [
+  { id:'clenove', sel:'#tabClenove', sloupce:{ 'Grupa':'vyber','Jméno':'text','Šéf grupy':'vyber','Řídí':'vyber',
+      'Přiveze':'vyber','Kolo':'vyber','Telefon':'text','E-mail':'text','Odjezd':'text','Nocleh pátek':'vyber',
+      'Nocleh sobota':'vyber','Poznámka':'text','Ročníky':'text','Číslo účtu':'text' } },
+  { id:'nezarazeni', sel:'#tabNezarazeni', sloupce:{ 'Jméno':'text','Šéf grupy':'vyber','Řídí':'vyber',
+      'Přiveze':'vyber','Kolo':'vyber','Telefon':'text','E-mail':'text','Odjezd':'text','Nocleh pátek':'vyber',
+      'Nocleh sobota':'vyber','Poznámka':'text','Ročníky':'text' } },
+  { id:'podrobny', sel:'#podrobny table.podrobnyTab', sloupce:{ 'Grupa':'vyber','Kód':'text','Typ':'vyber','Úkol':'text',
+      'Kdy':'text','Kde':'text','Doba':'cislo','Den':'vyber','Od':'cas','Do':'cas','Stav':'vyber','Zámek':'vyber','Původ':'vyber' } },
+  { id:'obj-ucastniku', sel:'#tabObjednavkyUcastniku', sloupce:{ 'Přišlo':'datum','Kdo':'text','Co si objednal':'text',
+      'Ks':'cislo','Kč':'cislo','VS':'text','Zaplaceno':'vyber','Stav':'vyber' },
+    jeData: tr => tr.classList.contains('objRadek'),
+    pripojene: tr => { const d = tr.nextElementSibling; return d && d.classList.contains('objDetail') ? [d] : []; } },
+];
+const FT_KLIC = 'hb_filtry_tabulek';
+let ftStav = (() => { try { return JSON.parse(localStorage.getItem(FT_KLIC) || '{}'); } catch(e){ return {}; } })();
+function ftUloz(){ try { localStorage.setItem(FT_KLIC, JSON.stringify(ftStav)); } catch(e){} }
+function ftS(id){ return ftStav[id] || (ftStav[id] = { f:{}, r:null }); }
+
+const ftNorm = s => bezDiakritiky(String(s == null ? '' : s)).toLowerCase().trim();
+function ftHodnota(td){
+  if(!td) return '';
+  const sel = [...td.querySelectorAll('select')];
+  if(sel.length) return sel.map(s => s.selectedIndex >= 0 ? s.options[s.selectedIndex].text.trim() : '').filter(x => x !== '').join(':');
+  const zaskrt = td.querySelector('input[type=checkbox]');
+  if(zaskrt) return zaskrt.checked ? 'ano' : 'ne';
+  const pole = [...td.querySelectorAll('input:not([type=hidden]),textarea')];
+  if(pole.length) return pole.map(p => p.value.trim()).filter(Boolean).join('–');
+  return (td.textContent || '').replace(/\s+/g, ' ').trim();
+}
+// klíč pro řazení a porovnání od–do: datum d. m. rrrr → rrrr-mm-dd, čas 7:05 → 07:05, číslo s čárkou
+const FT_DNY = { ctvrtek:1, ct:1, patek:2, pa:2, sobota:3, so:3, nedele:4, ne:4 };
+function ftKlic(v, typ){
+  v = String(v || '').trim();
+  // „neděle 08:30–11:00“ → podle pořadí dní v závodním týdnu, ne podle abecedy
+  const den = v.match(/^([^\s\d]+)\s*(.*)$/);
+  // zkratku dne (ČT, PÁ…) bere jen velkými písmeny, ať se nesplete s odpovědí „ne“
+  if(den && FT_DNY[bezDiakritiky(den[1])] && (den[2] || /^[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]{2}$/.test(den[1])) && (den[1].length > 2 || den[1] === den[1].toUpperCase())) return FT_DNY[bezDiakritiky(den[1])] + ' ' + (ftKlic(den[2], typ) || '');
+  let m = v.match(/^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})/);
+  if(m) return m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+  m = v.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[0];
+  m = v.match(/^(\d{1,2}):(\d{2})/); if(m && typ !== 'cislo') return m[1].padStart(2,'0') + ':' + m[2];
+  if(typ === 'cislo'){ const n = parseFloat(v.replace(/\s/g,'').replace(',', '.')); return isNaN(n) ? null : n; }
+  return v;
+}
+function ftSloupce(t, cfg){
+  const hl = t.tHead && t.tHead.rows[0]; if(!hl) return [];
+  return [...hl.cells].map((th, k) => {
+    const nadpis = (th.dataset.ftNadpis || th.textContent || '').trim();
+    if(!th.dataset.ftNadpis) th.dataset.ftNadpis = nadpis;
+    return { k, nadpis, typ: cfg.sloupce[nadpis] || null, th };
+  });
+}
+function ftRadky(t, cfg){
+  if(!t.tBodies[0]) return [];
+  const n = t.tHead && t.tHead.rows[0] ? t.tHead.rows[0].cells.length : 0;
+  return [...t.tBodies[0].rows].filter(tr => cfg.jeData ? cfg.jeData(tr) : tr.cells.length >= Math.max(2, n - 2));
+}
+function ftSedi(v, typ, f){
+  if(!f) return true;
+  if(typ === 'text'){
+    const q = ftNorm(f.q); if(!q) return true;
+    if(q === '-') return v === '';
+    return ftNorm(v).indexOf(q) >= 0;
+  }
+  if(typ === 'vyber'){ if(!f.v || !f.v.length) return true; return f.v.indexOf(v === '' ? '(prázdné)' : v) >= 0; }
+  const k = ftKlic(v, typ), od = f.od ? ftKlic(f.od, typ) : null, d = f.do ? ftKlic(f.do, typ) : null;
+  if(od == null && d == null) return true;
+  if(k == null || k === '') return false;
+  if(od != null && od !== '' && k < od) return false;
+  if(d != null && d !== '' && k > d) return false;
+  return true;
+}
+function ftAktivni(f, typ){
+  if(!f) return false;
+  if(typ === 'text') return !!String(f.q || '').trim();
+  if(typ === 'vyber') return !!(f.v && f.v.length);
+  return !!(f.od || f.do);
+}
+
+let ftVlastniZmena = false, ftPozorovatel = null;
+function ftObnovVse(){
+  ftVlastniZmena = true;
+  try { FT_TABULKY.forEach(cfg => document.querySelectorAll(cfg.sel).forEach(t => ftObnov(t, cfg))); }
+  finally { if(ftPozorovatel) ftPozorovatel.takeRecords(); ftVlastniZmena = false; }
+}
+function ftObnov(t, cfg){
+  const sl = ftSloupce(t, cfg); if(!sl.length) return;
+  t.classList.add('ft');
+  if(t.tHead.rows[0]) t.style.setProperty('--ftHlava', t.tHead.rows[0].offsetHeight + 'px');
+  const st = ftS(cfg.id);
+  // řádek filtrů v hlavičce (po každém innerHTML zmizí, proto se doplňuje znovu)
+  if(!t.tHead.querySelector('tr.ft-radek')){
+    const tr = document.createElement('tr'); tr.className = 'ft-radek';
+    sl.forEach(s => { const td = document.createElement('th'); if(s.typ) td.appendChild(ftOvladac(t, cfg, s)); tr.appendChild(td); });
+    t.tHead.appendChild(tr);
+    sl.forEach(s => {
+      if(!s.typ || s.th.classList.contains('razitelny')) return;  // PŘED v podrobném plánu řadí aplikace sama
+      s.th.classList.add('ft-razeni'); s.th.title = (s.th.title ? s.th.title + ' · ' : '') + 'Kliknutím seřadíte';
+      s.th.onclick = () => {
+        const r = st.r && st.r.sl === s.nadpis ? st.r : null;
+        st.r = !r ? { sl:s.nadpis, smer:1 } : (r.smer === 1 ? { sl:s.nadpis, smer:-1 } : null);
+        ftUloz(); ftObnovVse();
+      };
+    });
+    t.tHead.querySelectorAll('th.razitelny').forEach(th => th.addEventListener('click', () => { st.r = null; ftUloz(); }, true));
+  }
+  // šipky řazení
+  sl.forEach(s => {
+    let sip = s.th.querySelector('.ft-sipka');
+    const ted = st.r && st.r.sl === s.nadpis ? (st.r.smer === 1 ? '▲' : '▼') : '';
+    if(ted && !sip){ sip = document.createElement('span'); sip.className = 'ft-sipka sipkaRazeni'; s.th.appendChild(sip); }
+    if(sip) sip.textContent = ted;
+  });
+  // filtrování
+  const radky = ftRadky(t, cfg);
+  let videt = 0;
+  radky.forEach(tr => {
+    const ok = sl.every(s => !s.typ || ftSedi(ftHodnota(tr.cells[s.k]), s.typ, st.f[s.nadpis]));
+    tr.style.display = ok ? '' : 'none';
+    (cfg.pripojene ? cfg.pripojene(tr) : []).forEach(p => { p.style.display = ok ? '' : 'none'; });
+    if(ok) videt++;
+  });
+  // řazení: jen datové řádky (s připojenými), ostatní (Celkem, hlášky) zůstanou na konci
+  if(st.r){
+    const s = sl.find(x => x.nadpis === st.r.sl);
+    if(s){
+      const tb = t.tBodies[0], zbytek = [...tb.rows].filter(tr => radky.indexOf(tr) < 0 && !radky.some(d => (cfg.pripojene ? cfg.pripojene(d) : []).indexOf(tr) >= 0));
+      const ser = radky.map((tr, i) => ({ tr, i, k: ftKlic(ftHodnota(tr.cells[s.k]), s.typ) }))
+        .sort((a, b) => {
+          const pa = a.k == null || a.k === '', pb = b.k == null || b.k === '';
+          if(pa !== pb) return pa ? 1 : -1;               // prázdné vždycky na konec
+          const c = (typeof a.k === 'number' && typeof b.k === 'number') ? a.k - b.k
+                  : String(a.k).localeCompare(String(b.k), 'cs', { numeric:true, sensitivity:'base' });
+          return (c || a.i - b.i) * (c ? st.r.smer : 1);
+        });
+      ser.forEach(x => { tb.appendChild(x.tr); (cfg.pripojene ? cfg.pripojene(x.tr) : []).forEach(p => tb.appendChild(p)); });
+      zbytek.forEach(tr => tb.appendChild(tr));
+    }
+  }
+  // střídání barev jen u viditelných řádků
+  let n = 0; radky.forEach(tr => { if(tr.style.display !== 'none'){ tr.classList.toggle('ft-sudy', n % 2 === 1); n++; } });
+  // souhrn nad tabulkou a panel filtrů pro mobil
+  const obal = t.closest('.obal-tab') || t;
+  let info = obal.previousElementSibling;
+  if(!info || !info.classList.contains('ft-info')){ info = document.createElement('div'); info.className = 'ft-info'; obal.parentNode.insertBefore(info, obal); }
+  const aktivni = sl.some(s => s.typ && ftAktivni(st.f[s.nadpis], s.typ));
+  info.innerHTML = '';
+  if(aktivni || st.r){
+    const p = document.createElement('span');
+    p.className = aktivni ? 'ft-zapnuto' : '';
+    p.textContent = (aktivni ? 'Filtr je zapnutý · zobrazeno ' + videt + ' z ' + radky.length : 'Seřazeno podle „' + st.r.sl + '“');
+    info.appendChild(p);
+    const z = document.createElement('button'); z.type = 'button'; z.className = 'ft-tl'; z.setAttribute('data-filtr', '');
+    z.textContent = aktivni ? 'Zrušit filtry' : 'Zrušit řazení';
+    z.onclick = () => { st.f = {}; st.r = null; ftUloz(); t.tHead.querySelector('tr.ft-radek')?.remove(); ftObnovVse(); };
+    info.appendChild(z);
+  }
+  if(document.body.classList.contains('mobil')){
+    const tl = document.createElement('button'); tl.type = 'button'; tl.className = 'ft-tl'; tl.setAttribute('data-filtr', '');
+    tl.textContent = 'Filtrovat'; info.appendChild(tl);
+    const panel = document.createElement('div'); panel.className = 'ft-panel'; panel.hidden = !info.dataset.otevreno;
+    sl.filter(s => s.typ).forEach(s => {
+      const l = document.createElement('label'); l.textContent = s.nadpis; l.appendChild(ftOvladac(t, cfg, s)); panel.appendChild(l);
+    });
+    tl.onclick = () => { panel.hidden = !panel.hidden; info.dataset.otevreno = panel.hidden ? '' : '1'; };
+    info.appendChild(panel);
+  }
+}
+function ftOvladac(t, cfg, s){
+  const st = ftS(cfg.id), f = st.f[s.nadpis] || {};
+  const zmena = () => { ftUloz(); clearTimeout(ftOvladac.c); ftOvladac.c = setTimeout(ftObnovVse, 150); };
+  const nastav = (k, v) => { st.f[s.nadpis] = Object.assign({}, st.f[s.nadpis] || {}, { [k]: v }); zmena(); };
+  const obal = document.createElement('div'); obal.className = 'ft-pole';
+  if(s.typ === 'text'){
+    const i = document.createElement('input'); i.type = 'search'; i.placeholder = 'hledat…'; i.value = f.q || '';
+    i.title = 'Hledá bez ohledu na diakritiku. Pomlčka „-“ najde prázdné.'; i.setAttribute('data-filtr', '');
+    i.oninput = () => nastav('q', i.value); obal.appendChild(i);
+  } else if(s.typ === 'vyber'){
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'ft-vyber'; b.setAttribute('data-filtr', '');
+    const popis = () => { const v = (st.f[s.nadpis] || {}).v || []; b.textContent = v.length ? (v.length === 1 ? v[0] : v.length + ' vybráno') : 'vše ▾'; b.classList.toggle('ft-ma', !!v.length); };
+    popis();
+    b.onclick = e => {
+      e.stopPropagation();
+      document.querySelectorAll('.ft-nabidka').forEach(x => x.remove());
+      const vybrane = new Set((st.f[s.nadpis] || {}).v || []);
+      const hodnoty = [...new Set(ftRadky(t, cfg).map(tr => ftHodnota(tr.cells[s.k]) || '(prázdné)'))]
+        .sort((a, c) => a === '(prázdné)' ? 1 : c === '(prázdné)' ? -1 : a.localeCompare(c, 'cs', { numeric:true }));
+      const n = document.createElement('div'); n.className = 'ft-nabidka';
+      n.onclick = ev => ev.stopPropagation();
+      const vse = document.createElement('button'); vse.type = 'button'; vse.className = 'ft-tl'; vse.textContent = 'Vše (zrušit výběr)';
+      vse.onclick = () => { vybrane.clear(); n.querySelectorAll('input').forEach(x => x.checked = false); nastav('v', []); popis(); };
+      n.appendChild(vse);
+      hodnoty.forEach(h => {
+        const l = document.createElement('label'), c = document.createElement('input'); c.type = 'checkbox'; c.checked = vybrane.has(h);
+        c.onchange = () => { c.checked ? vybrane.add(h) : vybrane.delete(h); nastav('v', [...vybrane]); popis(); };
+        l.appendChild(c); l.appendChild(document.createTextNode(' ' + h)); n.appendChild(l);
+      });
+      const r = b.getBoundingClientRect();
+      n.style.left = Math.max(8, Math.min(r.left, innerWidth - 260)) + 'px'; n.style.top = (r.bottom + 4) + 'px';
+      document.body.appendChild(n);
+    };
+    obal.appendChild(b);
+  } else {
+    const ph = s.typ === 'datum' ? ['od d. m.', 'do d. m.'] : s.typ === 'cas' ? ['od 0:00', 'do 0:00'] : ['od', 'do'];
+    ['od', 'do'].forEach((k, j) => {
+      const i = document.createElement('input'); i.type = 'text'; i.placeholder = ph[j]; i.value = f[k] || ''; i.setAttribute('data-filtr', '');
+      i.oninput = () => nastav(k, i.value.trim()); obal.appendChild(i);
+    });
+  }
+  return obal;
+}
+document.addEventListener('click', () => document.querySelectorAll('.ft-nabidka').forEach(x => x.remove()));
+window.addEventListener('scroll', () => document.querySelectorAll('.ft-nabidka').forEach(x => x.remove()), true);
+function zarizFiltryTabulek(){
+  ftObnovVse();
+  if(!window.MutationObserver) return;
+  let cekani = null;
+  ftPozorovatel = new MutationObserver(zaznamy => {
+    if(ftVlastniZmena) return;
+    if(zaznamy.every(z => z.target.closest && z.target.closest('.ft-radek,.ft-info,.ft-nabidka'))) return;
+    clearTimeout(cekani); cekani = setTimeout(ftObnovVse, 60);
+  });
+  ftPozorovatel.observe(document.body, { childList:true, subtree:true });
+}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', zarizFiltryTabulek);
+else zarizFiltryTabulek();
+
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', zarizSbalovaniObleceni);
 else zarizSbalovaniObleceni();
 
@@ -10887,7 +11148,8 @@ function uplatniPrava(){
        Jakmile se z nich staly vícevýběry poskládané z tlačítek, přestala je
        krýt: tlačítko filtru se zamklo a na mobilu ho pravidlo pro zamčená
        tlačítka v liště rovnou schovalo — filtr na grupy zmizel. */
-    const jeOvladaniFiltru = el => !!el.closest('.nastroje')
+    const jeOvladaniFiltru = el => !!el.closest('.ft-radek,.ft-info')   // filtry nad tabulkami (v5.109p)
+      || !!el.closest('.nastroje')
       && (el.tagName === 'SELECT' || !!el.closest('.vicevyber')
           || el.id === 'filtrKod' || el.hasAttribute('data-filtr'));
     sek.querySelectorAll('input,select,textarea,button').forEach(el=>{
