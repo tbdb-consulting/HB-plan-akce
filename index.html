@@ -2377,8 +2377,10 @@ const smiPsat = () => Object.keys(D.prava[platnaUroven()] || {})
                         .some(o => D.prava[platnaUroven()][o] === "zápis");
 
 // Verzi zvedáme ručně při každé změně, čas buildu doplňuje sanitize_public.py.
-const VERZE = "v5.107p";
-const BUILD = "2026-09-19T19:45+02:00";                              // vyplní se ve veřejném buildu
+const VERZE = "v5.108p";
+// Čas buildu dřív zapisoval sanitize_public.py; od září se nahrává bez něj a zůstal tu 19. 9. 2026.
+// Prázdný BUILD = ukáže se čas nahrání souboru, který posílá server (document.lastModified), v5.108p.
+const BUILD = "";
 
 const VEREJNA = true;    // veřejná verze pro GitHub Pages = true
 // Záložky, které se ve veřejném buildu nenabízejí vůbec. Plní to sanitize_public.py.
@@ -13007,14 +13009,15 @@ function kresliVerzi(){
   // Razitko v hlavicce je videt vzdycky - i kdyz se spravce na stranku Nastaveni
   // nedostane. Podrobnosti (build, cely commit) zustavaji na Nastaveni.
   const raz = $('#razitkoVerze');
-  if(raz) raz.innerHTML = esc(VERZE) + (BUILD ? ' · ' + esc(cesky(BUILD)) : ' · pracovni verze')
+  const casSouboru = BUILD || document.lastModified || '';
+  if(raz) raz.innerHTML = esc(VERZE) + (casSouboru ? ' · ' + esc(cesky(casSouboru)) : ' · pracovni verze')
     + ' <span id="razitkoCommit"></span>';
   const cil = $('#stavVerze');
   if(!cil){ dotazNaCommit(); return; }
   const radek = (co, cim) => '<div><span style="display:inline-block;min-width:150px;color:var(--pisek)">'
     + co + '</span><b>' + cim + '</b></div>';
   cil.innerHTML = radek('Verze plánovače', esc(VERZE))
-    + radek('Build souboru', BUILD ? esc(cesky(BUILD)) : 'pracovní verze, nebuildováno')
+    + radek('Soubor nahraný', casSouboru ? esc(cesky(casSouboru)) : 'neznámo')
     + radek('Poslední commit', '<span id="stavCommit">zjišťuji…</span>');
 
   dotazNaCommit();
