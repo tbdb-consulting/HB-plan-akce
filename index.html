@@ -718,6 +718,18 @@ body.mobil .chybovka{left:8px;right:8px;transform:none;max-width:none;bottom:8px
 .vzkazKarta audio{width:100%;margin-top:8px;height:34px}
 .vzkazKarta .znak{background:#F1EDE5;border-radius:20px;padding:2px 9px;font-size:11.5px;font-weight:700}
 .vzkazKarta.vyrizeny{opacity:.62}
+/* Podzáložky Oblečení (v5.106p): vidět je jen karta s data-pod shodným se sekcí */
+.podzalozky{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;border-bottom:2px solid var(--linka);padding-bottom:8px}
+.podzalozky button{font:inherit;font-weight:700;border:1px solid var(--linka);background:#fff;color:var(--tmava);
+  padding:8px 14px;border-radius:8px;cursor:pointer}
+.podzalozky button[aria-selected="true"]{background:var(--vinova);border-color:var(--vinova);color:#fff}
+#s-tricka[data-pod="lidi"] .karta[data-pod]:not([data-pod="lidi"]),
+#s-tricka[data-pod="sklad"] .karta[data-pod]:not([data-pod="sklad"]),
+#s-tricka[data-pod="dodavatel"] .karta[data-pod]:not([data-pod="dodavatel"]),
+#s-tricka[data-pod="katalog"] .karta[data-pod]:not([data-pod="katalog"]){display:none}
+details.sbal-obl{margin-top:18px}
+details.sbal-obl > summary{cursor:pointer;font-weight:700;color:var(--vinova);padding:4px 0}
+details.sbal-obl[open] > summary{margin-bottom:8px}
 </style>
 </head>
 <body data-build="verejna">
@@ -1319,8 +1331,139 @@ body.mobil .chybovka{left:8px;right:8px;transform:none;max-width:none;bottom:8px
 
 
   <!-- 9. TRIČKA -->
-  <section class="sekce" id="s-tricka">
-    <div class="karta">
+  <section class="sekce" id="s-tricka" data-pod="lidi">
+    <!-- Podzáložky Oblečení (Keksa 24. 10. 2026, v5.106p): 17 sekcí rozdělených podle toho, kdy se k nim sedá.
+         Přepíná se jen atributem data-pod na sekci (CSS), karty zůstávají v DOM a kreslí se jako dřív. -->
+    <div class="podzalozky" role="tablist" aria-label="Části záložky Oblečení">
+      <button type="button" role="tab" data-pod="lidi" title="Co přišlo od účastníků a pořadatelů" onclick="prepniPodObleceni('lidi')" aria-selected="true">Objednávky lidí</button>
+      <button type="button" role="tab" data-pod="sklad" title="Co máme fyzicky na place" onclick="prepniPodObleceni('sklad')" aria-selected="false">Sklad</button>
+      <button type="button" role="tab" data-pod="dodavatel" title="Jarní a letní kolo, počítání várek" onclick="prepniPodObleceni('dodavatel')" aria-selected="false">Objednávka u dodavatele</button>
+      <button type="button" role="tab" data-pod="katalog" title="Co vůbec existuje – mění se párkrát za rok" onclick="prepniPodObleceni('katalog')" aria-selected="false">Katalog</button>
+    </div>
+
+    <div class="karta" data-pod="lidi">
+      <h2>Objednávky účastníků</h2>
+      <div class="telo">
+        <p class="popisek">Jeden řádek = jedna objednávka z formuláře, tak jak přišla.
+          Pod zbožím je šedě původní odpověď, ze které vznikla — ať je vidět, co se
+          z čeho stalo. Klepnutím na řádek se rozbalí e-mail, telefon, tým a výdejní
+          místo.</p>
+        <div id="souhrnObjednavek" class="popisek" style="margin-bottom:10px"></div>
+        <div class="obal-tab"><table class="tab" id="tabObjednavkyUcastniku"></table></div>
+      </div>
+    </div>
+
+    <div class="karta" data-pod="lidi">
+      <h2>Kdo co objednal</h2>
+      <div class="telo">
+        <p class="popisek">Poslední kontrola před odesláním výrobci: u každé velikosti
+          je vidět, kdo si ji objednal a kolik kusů, co z toho pokryje sklad a kolik
+          se doopravdy objednává. Počítají se jen objednávky ve stavu nová — vydané
+          už člověk má, zrušené nechce. Zaplacení na tom nic nemění, zaplacenou
+          objednávku je pořád potřeba pořídit.</p>
+        <div class="obal-tab"><table class="tab" id="tabKdoCo"></table></div>
+        <p class="popisek" id="varovaniKdoCo" style="margin-top:8px"></p>
+      </div>
+    </div>
+
+    <div class="karta" data-pod="lidi">
+      <h2>Objednávkové formuláře</h2>
+      <div class="telo">
+        <p class="popisek">Odkaz na tabulku Google a datum, kdy se formulář zavírá.
+          Odpovědi do databáze posílá skript, který běží u té tabulky — sama tabulka
+          je soukromá a prohlížeč do ní nevidí. Tlačítkem <b>Načíst</b> se čekající
+          řádky přeloží na objednávky podle překladu sloupců níž. Objednávka, která
+          přijde po termínu, se načte taky, jen se označí. Formulářů může běžet víc naráz.</p>
+        <div class="obal-tab"><table class="tab" id="tabFormulare"></table></div>
+        <button class="tl" style="margin-top:10px" title="Přidá další objednávkový formulář." onclick="pridej('formular')">+ Přidat formulář</button>
+
+        <details class="sbal-obl">
+          <summary>Překlad sloupců (nastavuje se jednou za formulář)</summary>
+        <p class="popisek">Co který sloupec formuláře znamená. U objednaného zboží
+          stačí vybrat zboží a velikost; střih se vezme ze sloupce, kde si ho člověk
+          volí („vyberte střih"). Když má zboží jen jeden střih — merino je unisex —
+          vezme se ten, i kdyby si člověk vybral dámské. Poslední sloupec je pro
+          případy, kdy se to skládat nemá a velikost v katalogu určíte natvrdo.</p>
+        <div class="obal-tab"><table class="tab" id="tabSloupce"></table></div>
+        </details>
+      </div>
+    </div>
+
+    <div class="karta" data-pod="sklad">
+      <h2>Poptávka proti skladu</h2>
+      <div class="telo">
+        <p class="popisek">Co lidé chtějí, co na to máme a co zbývá pořídit. Sklad se
+          nikomu nepřiděluje automaticky — tohle jsou jen čísla, rozhodnutí je na vás.</p>
+        <div id="souhrnPoptavky" class="popisek" style="margin-bottom:10px"></div>
+        <div class="obal-tab"><table class="tab" id="tabPoptavka"></table></div>
+      </div>
+    </div>
+
+    <div class="karta" data-pod="sklad">
+      <h2>Pohyby skladu — tabulka sklad_pohyby</h2>
+      <div class="telo">
+        <p class="popisek">Kladné číslo naskladňuje, záporné odepisuje. Prodej na stánku
+          se odepisuje souhrnně na konci akce, výdej pomocníkům má vlastní důvod,
+          ať se to nemíchá dohromady.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+          <div style="min-width:200px"><label class="popisek" style="display:block;margin-bottom:3px">Zboží</label>
+            <select id="filtrPohybZbozi" onchange="omezPohyby()" style="width:100%;padding:7px 9px;border:1px solid var(--linka);border-radius:8px;font:inherit"></select></div>
+          <div style="min-width:170px"><label class="popisek" style="display:block;margin-bottom:3px">Důvod</label>
+            <select id="filtrPohybDuvod" onchange="omezPohyby()" style="width:100%;padding:7px 9px;border:1px solid var(--linka);border-radius:8px;font:inherit"></select></div>
+          <span class="popisek" id="souhrnPohybu" style="flex:1;min-width:200px"></span>
+        </div>
+        <div class="obal-tab"><table class="tab" id="tabPohyby"></table></div>
+        <button class="tl" id="tlVsePohyby" style="margin-top:10px;margin-right:6px" onclick="vsePohyby=!vsePohyby;omezPohyby()">Zobrazit vše</button>
+        <button class="tl" style="margin-top:10px" title="Přidá další pohyb na skladě." onclick="pridej('pohyb')">+ Přidat pohyb</button>
+      </div>
+    </div>
+
+    <div class="karta" data-pod="dodavatel">
+      <h2>Objednávka triček u dodavatele — vstupy ročníku</h2>
+      <div class="telo">
+        <p class="popisek">Odhad pole se počítá z počtu zaplacených týmů, ne z rozepsaných
+          soupisek — ty bývají v půlce srpna vyplněné sotva z třetiny.</p>
+        <div id="vstupyTricka" style="display:flex;gap:14px;flex-wrap:wrap"></div>
+        <p class="popisek" id="souhrnTricka" style="margin:12px 0 0;font-size:13.5px;color:var(--tmava)"></p>
+      </div>
+    </div>
+
+    <div class="karta" data-pod="dodavatel">
+      <h2>Potřeba a objednávky po várkách</h2>
+      <div class="telo">
+        <p class="popisek">Bílé sloupce se počítají samy, editovat jde odhad podílu, pomocníci
+          a kusy v jednotlivých várkách. Sloupec „Zbývá" ukazuje, kolik k pokrytí
+          potřeby s rezervou schází; se znaménkem plus je to naopak přebytek.</p>
+        <div class="obal-tab"><table class="tab" id="tabTricka"></table></div>
+        <p class="popisek" id="varovaniTricka" style="margin-top:10px"></p>
+      </div>
+    </div>
+
+    <div class="karta" data-pod="dodavatel">
+      <h2>Objednávky po vlnách — tabulka objednavky</h2>
+      <div class="telo">
+        <div class="obal-tab"><table class="tab" id="tabObjednavky"></table></div>
+        <button class="tl" style="margin-top:10px" title="Přidá další vlnu objednávky triček." onclick="pridej('objednavka')">+ Přidat vlnu</button>
+      </div>
+    </div>
+
+    <div class="karta" data-pod="dodavatel">
+      <h2>Objednávky dodavatelům</h2>
+      <div class="telo">
+        <p class="popisek">Z toho, co chybí, se udělá jedna objednávka na každého výrobce —
+          přesně na chybějící kusy, bez rezervy. Tlačítko návrh přepíše, ručně
+          upravené počty se tím ztratí.</p>
+        <div class="obal-tab"><table class="tab" id="tabDodObjednavky"></table></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button class="tl hlavni" title="Spočítá, co chybí, a rozdělí to po výrobcích." onclick="navrhniObjednavkyDodavatelum()">Vytvořit z chybějícího</button>
+          <button class="tl" title="Přidá prázdnou objednávku dodavateli." onclick="pridej('dodObjednavka')">+ Přidat objednávku</button>
+        </div>
+        <div id="polozkyDodavatele" style="margin-top:16px"></div>
+
+      </div>
+    </div>
+
+    <div class="karta" data-pod="katalog">
       <h2>Sortiment — co se prodává a rozdává</h2>
       <div class="telo">
         <p class="popisek">Každý kus zboží stojí na třech věcech: <b>druh</b> říká, co to je,
@@ -1351,7 +1494,7 @@ body.mobil .chybovka{left:8px;right:8px;transform:none;max-width:none;bottom:8px
       </div>
     </div>
 
-    <div class="karta">
+    <div class="karta" data-pod="katalog">
       <h2>Velikosti zboží — odvozené z řady</h2>
       <div class="telo">
         <p class="popisek">Velikosti se nepřidávají po jedné. Zboží má velikostní řadu a z ní
@@ -1373,116 +1516,11 @@ body.mobil .chybovka{left:8px;right:8px;transform:none;max-width:none;bottom:8px
       </div>
     </div>
 
-    <div class="karta">
-      <h2>Pohyby skladu — tabulka sklad_pohyby</h2>
-      <div class="telo">
-        <p class="popisek">Kladné číslo naskladňuje, záporné odepisuje. Prodej na stánku
-          se odepisuje souhrnně na konci akce, výdej pomocníkům má vlastní důvod,
-          ať se to nemíchá dohromady.</p>
-        <div class="obal-tab"><table class="tab" id="tabPohyby"></table></div>
-        <button class="tl" style="margin-top:10px" title="Přidá další pohyb na skladě." onclick="pridej('pohyb')">+ Přidat pohyb</button>
-      </div>
-    </div>
-
-    <div class="karta">
-      <h2>Objednávka triček u dodavatele — vstupy ročníku</h2>
-      <div class="telo">
-        <p class="popisek">Odhad pole se počítá z počtu zaplacených týmů, ne z rozepsaných
-          soupisek — ty bývají v půlce srpna vyplněné sotva z třetiny.</p>
-        <div id="vstupyTricka" style="display:flex;gap:14px;flex-wrap:wrap"></div>
-        <p class="popisek" id="souhrnTricka" style="margin:12px 0 0;font-size:13.5px;color:var(--tmava)"></p>
-      </div>
-    </div>
-
-    <div class="karta">
-      <h2>Potřeba a objednávky po várkách</h2>
-      <div class="telo">
-        <p class="popisek">Bílé sloupce se počítají samy, editovat jde odhad podílu, pomocníci
-          a kusy v jednotlivých várkách. Sloupec „Zbývá" ukazuje, kolik k pokrytí
-          potřeby s rezervou schází; se znaménkem plus je to naopak přebytek.</p>
-        <div class="obal-tab"><table class="tab" id="tabTricka"></table></div>
-        <p class="popisek" id="varovaniTricka" style="margin-top:10px"></p>
-      </div>
-    </div>
-
-    <div class="karta">
-      <h2>Objednávky po vlnách — tabulka objednavky</h2>
-      <div class="telo">
-        <div class="obal-tab"><table class="tab" id="tabObjednavky"></table></div>
-        <button class="tl" style="margin-top:10px" title="Přidá další vlnu objednávky triček." onclick="pridej('objednavka')">+ Přidat vlnu</button>
-      </div>
-    </div>
-
-    <div class="karta">
-      <h2>Objednávkové formuláře</h2>
-      <div class="telo">
-        <p class="popisek">Odkaz na tabulku Google a datum, kdy se formulář zavírá.
-          Odpovědi do databáze posílá skript, který běží u té tabulky — sama tabulka
-          je soukromá a prohlížeč do ní nevidí. Tlačítkem <b>Načíst</b> se čekající
-          řádky přeloží na objednávky podle překladu sloupců níž. Objednávka, která
-          přijde po termínu, se načte taky, jen se označí. Formulářů může běžet víc naráz.</p>
-        <div class="obal-tab"><table class="tab" id="tabFormulare"></table></div>
-        <button class="tl" style="margin-top:10px" title="Přidá další objednávkový formulář." onclick="pridej('formular')">+ Přidat formulář</button>
-
-        <h3 style="margin:22px 0 6px;font-size:15px">Překlad sloupců</h3>
-        <p class="popisek">Co který sloupec formuláře znamená. U objednaného zboží
-          stačí vybrat zboží a velikost; střih se vezme ze sloupce, kde si ho člověk
-          volí („vyberte střih"). Když má zboží jen jeden střih — merino je unisex —
-          vezme se ten, i kdyby si člověk vybral dámské. Poslední sloupec je pro
-          případy, kdy se to skládat nemá a velikost v katalogu určíte natvrdo.</p>
-        <div class="obal-tab"><table class="tab" id="tabSloupce"></table></div>
-      </div>
-    </div>
-
-    <div class="karta">
-      <h2>Objednávky účastníků</h2>
-      <div class="telo">
-        <p class="popisek">Jeden řádek = jedna objednávka z formuláře, tak jak přišla.
-          Pod zbožím je šedě původní odpověď, ze které vznikla — ať je vidět, co se
-          z čeho stalo. Klepnutím na řádek se rozbalí e-mail, telefon, tým a výdejní
-          místo.</p>
-        <div id="souhrnObjednavek" class="popisek" style="margin-bottom:10px"></div>
-        <div class="obal-tab"><table class="tab" id="tabObjednavkyUcastniku"></table></div>
-      </div>
-    </div>
-
-    <div class="karta">
-      <h2>Poptávka proti skladu</h2>
-      <div class="telo">
-        <p class="popisek">Co lidé chtějí, co na to máme a co zbývá pořídit. Sklad se
-          nikomu nepřiděluje automaticky — tohle jsou jen čísla, rozhodnutí je na vás.</p>
-        <div id="souhrnPoptavky" class="popisek" style="margin-bottom:10px"></div>
-        <div class="obal-tab"><table class="tab" id="tabPoptavka"></table></div>
-      </div>
-    </div>
-
-    <div class="karta">
-      <h2>Objednávky dodavatelům</h2>
-      <div class="telo">
-        <p class="popisek">Z toho, co chybí, se udělá jedna objednávka na každého výrobce —
-          přesně na chybějící kusy, bez rezervy. Tlačítko návrh přepíše, ručně
-          upravené počty se tím ztratí.</p>
-        <div class="obal-tab"><table class="tab" id="tabDodObjednavky"></table></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-          <button class="tl hlavni" title="Spočítá, co chybí, a rozdělí to po výrobcích." onclick="navrhniObjednavkyDodavatelum()">Vytvořit z chybějícího</button>
-          <button class="tl" title="Přidá prázdnou objednávku dodavateli." onclick="pridej('dodObjednavka')">+ Přidat objednávku</button>
-        </div>
-        <div id="polozkyDodavatele" style="margin-top:16px"></div>
-
-        <h3 style="margin:22px 0 6px;font-size:15px">Kdo co objednal</h3>
-        <p class="popisek">Poslední kontrola před odesláním výrobci: u každé velikosti
-          je vidět, kdo si ji objednal a kolik kusů, co z toho pokryje sklad a kolik
-          se doopravdy objednává. Počítají se jen objednávky ve stavu nová — vydané
-          už člověk má, zrušené nechce. Zaplacení na tom nic nemění, zaplacenou
-          objednávku je pořád potřeba pořídit.</p>
-        <div class="obal-tab"><table class="tab" id="tabKdoCo"></table></div>
-        <p class="popisek" id="varovaniKdoCo" style="margin-top:8px"></p>
-      </div>
-    </div>
-
-    <div class="karta">
+    <div class="karta" data-pod="katalog">
       <h2>Číselníky — druhy, výrobci, velikostní řady</h2>
       <div class="telo">
+        <details class="sbal-obl">
+          <summary>Rozbalit druhy, výrobce a velikostní řady</summary>
         <p class="popisek">Kód je vnitřní označení, na které se zboží odkazuje — musí být
           jedinečný a bez mezer. Název je to, co se ukazuje ve filtrech a v tabulkách.</p>
 
@@ -1503,6 +1541,7 @@ body.mobil .chybovka{left:8px;right:8px;transform:none;max-width:none;bottom:8px
         <div class="obal-tab"><table class="tab" id="tabRady"></table></div>
         <button class="tl" style="margin-top:10px" title="Přidá další velikostní řadu." onclick="pridej('rada')">+ Přidat řadu</button>
         <div id="obsahRady" style="margin-top:16px"></div>
+        </details>
       </div>
     </div>
   </section>
@@ -2326,7 +2365,7 @@ const smiPsat = () => Object.keys(D.prava[platnaUroven()] || {})
                         .some(o => D.prava[platnaUroven()][o] === "zápis");
 
 // Verzi zvedáme ručně při každé změně, čas buildu doplňuje sanitize_public.py.
-const VERZE = "v5.105p";
+const VERZE = "v5.106p";
 const BUILD = "2026-09-19T19:45+02:00";                              // vyplní se ve veřejném buildu
 
 const VEREJNA = true;    // veřejná verze pro GitHub Pages = true
@@ -9139,6 +9178,51 @@ function kresliTricka(){
 const DUVODY_POHYBU = ['vyroba','nakup','prodej_stanek','vydej_objednavka',
                        'vydej_pomocnici','vraceni','inventura','oprava'];
 
+/* Podzáložky Oblečení (Keksa 24. 10. 2026, v5.106p). Přepíná se atributem na sekci,
+   CSS schová karty ostatních podzáložek; nic se nepřekresluje. Po načtení stránky
+   se vždy otevře Objednávky lidí. */
+function prepniPodObleceni(kod){
+  const s = $('#s-tricka'); if(!s) return;
+  s.dataset.pod = kod;
+  s.querySelectorAll('.podzalozky button').forEach(b => b.setAttribute('aria-selected', b.dataset.pod === kod ? 'true' : 'false'));
+}
+
+/* Pohyby skladu: vidět je jen posledních 20 podle data (nové neuložené řádky vždy),
+   nad tím filtr na zboží a důvod a tlačítko Zobrazit vše. Řádky se jen schovávají –
+   tabulka i indexy v ní zůstávají celé, takže úpravy a ukládání se nemění. */
+let vsePohyby = false;
+const POHYBU_NA_STRANCE = 20;
+function omezPohyby(){
+  const t = $('#tabPohyby'); if(!t || !t.tBodies[0]) return;
+  const selZb = $('#filtrPohybZbozi'), selDu = $('#filtrPohybDuvod');
+  const varPodleKodu = {};
+  D.zboziVarianty.forEach(v => { varPodleKodu[v.kod] = v; });
+  if(selZb){
+    const bylo = selZb.value;
+    selZb.innerHTML = '<option value="">všechno zboží</option>' + D.zbozi.slice()
+      .sort((a,b) => String(a.nazev).localeCompare(String(b.nazev),'cs'))
+      .map(z => '<option value="'+esc(z.kod)+'"'+(z.kod===bylo?' selected':'')+'>'+esc(popisZbozi(z))+'</option>').join('');
+  }
+  if(selDu && !selDu.options.length){
+    selDu.innerHTML = '<option value="">všechny důvody</option>'
+      + DUVODY_POHYBU.map(d => '<option value="'+d+'">'+d.replace(/_/g,' ')+'</option>').join('');
+  }
+  const zb = selZb ? selZb.value : '', du = selDu ? selDu.value : '';
+  const odpovida = D.skladPohyby.map(p =>
+    (!zb || (varPodleKodu[p.varianta_kod] || {}).zbozi_kod === zb) && (!du || p.duvod === du));
+  const poradi = D.skladPohyby.map((p,i) => i).filter(i => odpovida[i])
+    .sort((a,b) => String(D.skladPohyby[b].datum||'').localeCompare(String(D.skladPohyby[a].datum||'')));
+  const vidim = new Set(vsePohyby ? poradi : poradi.slice(0, POHYBU_NA_STRANCE));
+  D.skladPohyby.forEach((p,i) => { if(p._nove) vidim.add(i); });
+  [...t.tBodies[0].rows].forEach((tr,i) => { tr.style.display = vidim.has(i) ? '' : 'none'; });
+  const s = $('#souhrnPohybu');
+  if(s) s.textContent = 'Zobrazeno ' + vidim.size + ' z ' + poradi.length
+    + (zb || du ? ' podle filtru (celkem ' + D.skladPohyby.length + ')' : '') + ' (vidět jsou nejnovější podle data).';
+  const tl = $('#tlVsePohyby');
+  if(tl){ tl.textContent = vsePohyby ? 'Jen posledních ' + POHYBU_NA_STRANCE : 'Zobrazit vše';
+          tl.style.display = poradi.length > POHYBU_NA_STRANCE ? '' : 'none'; }
+}
+
 function volnyKodZbozi(zaklad){
   const obsazene = new Set(D.zbozi.map(x => x.kod));
   if(!obsazene.has(zaklad)) return zaklad;
@@ -10503,6 +10587,7 @@ function kresliPohyby(){
      moznosti: [{v:'', t:'— bez ročníku —'}].concat(ROKY), sirka:"130px"},
     {nadpis:"Poznámka", pole:"poznamka"}
   ], D.skladPohyby, () => kresliObleceni(), true, false);
+  omezPohyby();
 
   const t = $('#tabPohyby');
   if(!t) return;
