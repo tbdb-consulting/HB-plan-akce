@@ -730,6 +730,17 @@ body.mobil .chybovka{left:8px;right:8px;transform:none;max-width:none;bottom:8px
 details.sbal-obl{margin-top:18px}
 details.sbal-obl > summary{cursor:pointer;font-weight:700;color:var(--vinova);padding:4px 0}
 details.sbal-obl[open] > summary{margin-bottom:8px}
+/* Sbalování karet na záložce Oblečení (v5.107p): nadpis karty je tlačítko, šipka jako u details.sbal-obl */
+#s-tricka .karta > h2{cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none}
+#s-tricka .karta > h2::before{content:"▾";color:var(--vinova);font-size:13px;width:12px;flex:none}
+#s-tricka .karta.sbalena > h2::before{content:"▸"}
+#s-tricka .karta.sbalena > h2{border-bottom:0}
+#s-tricka .karta.sbalena > .telo{display:none}
+#s-tricka .karta > h2:focus-visible{outline:2px solid var(--vinova);outline-offset:-2px}
+#s-tricka .karta > h2 .sbal-udaj{margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--pisek)}
+#s-tricka .karta:not(.sbalena) > h2 .sbal-udaj{display:none}
+.sbal-vse{margin-left:auto;display:flex;gap:6px}
+.sbal-vse button{font:inherit;font-size:12.5px;border:1px solid var(--linka);background:#fff;color:var(--tmava);border-radius:8px;padding:4px 10px;cursor:pointer}
 </style>
 </head>
 <body data-build="verejna">
@@ -1339,6 +1350,10 @@ details.sbal-obl[open] > summary{margin-bottom:8px}
       <button type="button" role="tab" data-pod="sklad" title="Co máme fyzicky na place" onclick="prepniPodObleceni('sklad')" aria-selected="false">Sklad</button>
       <button type="button" role="tab" data-pod="dodavatel" title="Jarní a letní kolo, počítání várek" onclick="prepniPodObleceni('dodavatel')" aria-selected="false">Objednávka u dodavatele</button>
       <button type="button" role="tab" data-pod="katalog" title="Co vůbec existuje – mění se párkrát za rok" onclick="prepniPodObleceni('katalog')" aria-selected="false">Katalog</button>
+      <span class="sbal-vse">
+        <button type="button" title="Rozbalí všechny karty v téhle části" onclick="sbalVseObleceni(false)">Rozbalit vše</button>
+        <button type="button" title="Sbalí všechny karty v téhle části" onclick="sbalVseObleceni(true)">Sbalit vše</button>
+      </span>
     </div>
 
     <div class="karta" data-pod="lidi">
@@ -1366,7 +1381,7 @@ details.sbal-obl[open] > summary{margin-bottom:8px}
       </div>
     </div>
 
-    <div class="karta" data-pod="lidi">
+    <div class="karta" data-sbalena="1" data-pod="lidi">
       <h2>Objednávkové formuláře</h2>
       <div class="telo">
         <p class="popisek">Odkaz na tabulku Google a datum, kdy se formulář zavírá.
@@ -1399,7 +1414,7 @@ details.sbal-obl[open] > summary{margin-bottom:8px}
       </div>
     </div>
 
-    <div class="karta" data-pod="sklad">
+    <div class="karta" data-sbalena="1" data-pod="sklad">
       <h2>Pohyby skladu — tabulka sklad_pohyby</h2>
       <div class="telo">
         <p class="popisek">Kladné číslo naskladňuje, záporné odepisuje. Prodej na stánku
@@ -1439,7 +1454,7 @@ details.sbal-obl[open] > summary{margin-bottom:8px}
       </div>
     </div>
 
-    <div class="karta" data-pod="dodavatel">
+    <div class="karta" data-sbalena="1" data-pod="dodavatel">
       <h2>Objednávky po vlnách — tabulka objednavky</h2>
       <div class="telo">
         <div class="obal-tab"><table class="tab" id="tabObjednavky"></table></div>
@@ -1494,7 +1509,7 @@ details.sbal-obl[open] > summary{margin-bottom:8px}
       </div>
     </div>
 
-    <div class="karta" data-pod="katalog">
+    <div class="karta" data-sbalena="1" data-pod="katalog">
       <h2>Velikosti zboží — odvozené z řady</h2>
       <div class="telo">
         <p class="popisek">Velikosti se nepřidávají po jedné. Zboží má velikostní řadu a z ní
@@ -1516,11 +1531,9 @@ details.sbal-obl[open] > summary{margin-bottom:8px}
       </div>
     </div>
 
-    <div class="karta" data-pod="katalog">
+    <div class="karta" data-sbalena="1" data-pod="katalog">
       <h2>Číselníky — druhy, výrobci, velikostní řady</h2>
       <div class="telo">
-        <details class="sbal-obl">
-          <summary>Rozbalit druhy, výrobce a velikostní řady</summary>
         <p class="popisek">Kód je vnitřní označení, na které se zboží odkazuje — musí být
           jedinečný a bez mezer. Název je to, co se ukazuje ve filtrech a v tabulkách.</p>
 
@@ -1541,7 +1554,6 @@ details.sbal-obl[open] > summary{margin-bottom:8px}
         <div class="obal-tab"><table class="tab" id="tabRady"></table></div>
         <button class="tl" style="margin-top:10px" title="Přidá další velikostní řadu." onclick="pridej('rada')">+ Přidat řadu</button>
         <div id="obsahRady" style="margin-top:16px"></div>
-        </details>
       </div>
     </div>
   </section>
@@ -2365,7 +2377,7 @@ const smiPsat = () => Object.keys(D.prava[platnaUroven()] || {})
                         .some(o => D.prava[platnaUroven()][o] === "zápis");
 
 // Verzi zvedáme ručně při každé změně, čas buildu doplňuje sanitize_public.py.
-const VERZE = "v5.106p";
+const VERZE = "v5.107p";
 const BUILD = "2026-09-19T19:45+02:00";                              // vyplní se ve veřejném buildu
 
 const VEREJNA = true;    // veřejná verze pro GitHub Pages = true
@@ -9184,8 +9196,58 @@ const DUVODY_POHYBU = ['vyroba','nakup','prodej_stanek','vydej_objednavka',
 function prepniPodObleceni(kod){
   const s = $('#s-tricka'); if(!s) return;
   s.dataset.pod = kod;
-  s.querySelectorAll('.podzalozky button').forEach(b => b.setAttribute('aria-selected', b.dataset.pod === kod ? 'true' : 'false'));
+  s.querySelectorAll('.podzalozky button[data-pod]').forEach(b => b.setAttribute('aria-selected', b.dataset.pod === kod ? 'true' : 'false'));
+  udajeSbalenychKaret();
 }
+
+/* Sbalování karet na záložce Oblečení (Keksa 24. 10. 2026, v5.107p). Nadpis karty je tlačítko;
+   co je na začátku sbalené, určuje data-sbalena v HTML, volbu uživatele si pamatuje tenhle prohlížeč
+   (localStorage hb_obleceni_sbaleno, klíč = text nadpisu). Sbalená karta ukáže vedle nadpisu počet řádků. */
+const KLIC_SBALENO = 'hb_obleceni_sbaleno';
+function stavSbaleni(){ try { return JSON.parse(localStorage.getItem(KLIC_SBALENO) || '{}'); } catch(e){ return {}; } }
+function ulozSbaleni(st){ try { localStorage.setItem(KLIC_SBALENO, JSON.stringify(st)); } catch(e){} }
+function kartyObleceni(){ return [...document.querySelectorAll('#s-tricka .karta')]; }
+function nadpisKarty(k){ const h = k.querySelector(':scope > h2'); return h ? (h.dataset.nazev || h.textContent.trim()) : ''; }
+function nastavSbaleni(k, sbalit, zapamatovat){
+  k.classList.toggle('sbalena', sbalit);
+  const h = k.querySelector(':scope > h2'); if(h) h.setAttribute('aria-expanded', sbalit ? 'false' : 'true');
+  if(zapamatovat){ const st = stavSbaleni(); st[nadpisKarty(k)] = sbalit; ulozSbaleni(st); }
+  if(sbalit) udajKarty(k);
+}
+function udajKarty(k){
+  const u = k.querySelector(':scope > h2 .sbal-udaj'); if(!u) return;
+  const tab = k.querySelector('.telo table'); const n = tab && tab.tBodies[0] ? tab.tBodies[0].rows.length : 0;
+  u.textContent = tab ? (n === 1 ? '1 řádek' : (n >= 2 && n <= 4) ? n + ' řádky' : n + ' řádků') : '';
+}
+function udajeSbalenychKaret(){ kartyObleceni().forEach(k => { if(k.classList.contains('sbalena')) udajKarty(k); }); }
+function sbalVseObleceni(sbalit){
+  const pod = ($('#s-tricka') || {}).dataset?.pod;
+  kartyObleceni().filter(k => k.dataset.pod === pod).forEach(k => nastavSbaleni(k, sbalit, true));
+}
+function zarizSbalovaniObleceni(){
+  const st = stavSbaleni();
+  kartyObleceni().forEach(k => {
+    const h = k.querySelector(':scope > h2'); if(!h || h.dataset.nazev) return;
+    h.dataset.nazev = h.textContent.trim();
+    const u = document.createElement('span'); u.className = 'sbal-udaj'; h.appendChild(u);
+    h.setAttribute('role', 'button'); h.setAttribute('tabindex', '0');
+    h.title = 'Kliknutím sbalíte nebo rozbalíte';
+    const prepni = () => nastavSbaleni(k, !k.classList.contains('sbalena'), true);
+    h.addEventListener('click', prepni);
+    h.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); prepni(); } });
+    const ulozeno = st[h.dataset.nazev];
+    nastavSbaleni(k, ulozeno === undefined ? k.dataset.sbalena === '1' : ulozeno, false);
+  });
+  // tabulky se kreslí až po načtení dat – počet řádků u sbalených karet se dopočítá
+  const s = $('#s-tricka');
+  if(s && window.MutationObserver){
+    let cekani = null;
+    new MutationObserver(() => { clearTimeout(cekani); cekani = setTimeout(udajeSbalenychKaret, 300); })
+      .observe(s, { childList: true, subtree: true });
+  }
+}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', zarizSbalovaniObleceni);
+else zarizSbalovaniObleceni();
 
 /* Pohyby skladu: vidět je jen posledních 20 podle data (nové neuložené řádky vždy),
    nad tím filtr na zboží a důvod a tlačítko Zobrazit vše. Řádky se jen schovávají –
