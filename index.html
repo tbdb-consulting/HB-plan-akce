@@ -740,14 +740,16 @@ details.sbal-obl{margin-top:18px}
 details.sbal-obl > summary{cursor:pointer;font-weight:700;color:var(--vinova);padding:4px 0}
 details.sbal-obl[open] > summary{margin-bottom:8px}
 /* Sbalování karet na záložce Oblečení (v5.107p): nadpis karty je tlačítko, šipka jako u details.sbal-obl */
-#s-tricka .karta > h2{cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none}
-#s-tricka .karta > h2::before{content:"▾";color:var(--vinova);font-size:13px;width:12px;flex:none}
-#s-tricka .karta.sbalena > h2::before{content:"▸"}
-#s-tricka .karta.sbalena > h2{border-bottom:0}
-#s-tricka .karta.sbalena > .telo{display:none}
-#s-tricka .karta > h2:focus-visible{outline:2px solid var(--vinova);outline-offset:-2px}
-#s-tricka .karta > h2 .sbal-udaj{margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--pisek)}
-#s-tricka .karta:not(.sbalena) > h2 .sbal-udaj{display:none}
+#s-tricka .karta > h2, #s-noclehy-mista .karta > h2{cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none}
+#s-tricka .karta > h2::before, #s-noclehy-mista .karta > h2::before{content:"▾";color:var(--vinova);font-size:13px;width:12px;flex:none}
+#s-tricka .karta.sbalena > h2::before, #s-noclehy-mista .karta.sbalena > h2::before{content:"▸"}
+#s-tricka .karta.sbalena > h2, #s-noclehy-mista .karta.sbalena > h2{border-bottom:0}
+#s-tricka .karta.sbalena > .telo, #s-noclehy-mista .karta.sbalena > .telo{display:none}
+#s-tricka .karta > h2:focus-visible, #s-noclehy-mista .karta > h2:focus-visible{outline:2px solid var(--vinova);outline-offset:-2px}
+#s-tricka .karta > h2 .sbal-udaj, #s-noclehy-mista .karta > h2 .sbal-udaj{margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--pisek)}
+#s-tricka .karta:not(.sbalena) > h2 .sbal-udaj, #s-noclehy-mista .karta:not(.sbalena) > h2 .sbal-udaj{display:none}
+.noc-lista{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin:0 0 12px}
+.noc-lista .obl-rok{margin-left:0}
 .sbal-vse{display:flex;gap:6px}
 .obl-rok{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--tmava)}
 .obl-rok select{font:inherit;font-weight:400;padding:4px 8px;border:1px solid var(--linka);border-radius:8px;background:#fff}
@@ -1351,6 +1353,16 @@ th.ft-razeni:hover{color:var(--tmava)}
   <section class="sekce" id="s-noclehy-mista">
     <!-- Noclehy na jedné záložce (Keksa 24. 10. 2026, v5.112p): přehled po nocích, kdo kde spí, místa.
          Kdo kde spí se bere ze Členů grup (nocleh_patek, nocleh_sobota) – jedno místo pravdy. -->
+    <div class="noc-lista">
+      <label class="obl-rok" title="Starší ročník se jen zobrazí, upravovat jde jen aktivní ročník.">Ročník
+        <select id="nocRok" data-filtr onchange="nastavNocRok(this.value)"></select></label>
+      <span class="sbal-vse">
+        <button type="button" title="Rozbalí všechny karty" onclick="sbalVseNoclehy(false)">Rozbalit vše</button>
+        <button type="button" title="Sbalí všechny karty" onclick="sbalVseNoclehy(true)">Sbalit vše</button>
+      </span>
+    </div>
+    <div id="nocCteni"></div>
+    <div id="novyRocnikNoc"></div>
     <div class="karta">
       <h2>Přehled po nocích</h2>
       <div class="telo">
@@ -1375,15 +1387,12 @@ th.ft-razeni:hover{color:var(--tmava)}
         <div class="obal-tab lepivaHlava"><table class="tab" id="tabNocKdo"></table></div>
       </div>
     </div>
-    <div class="karta">
+    <div class="karta" data-sbalena="1">
       <h2>Místa — adresy, kapacity, kontakty</h2>
-      <div class="telo">
-        <details class="sbal-obl" id="nocMistaSbal">
-          <summary>Rozbalit místa noclehu</summary>
+      <div class="telo" id="nocMistaSbal">
           <div id="kartyNocMista"></div>
           <div class="obal-tab"><table class="tab" id="tabNocMista"></table></div>
           <button class="tl" style="margin-top:10px" title="Přidá prázdný řádek pro další místo noclehu." onclick="pridej('nocMista')">+ Přidat nocleh</button>
-        </details>
       </div>
     </div>
   </section>
@@ -2431,7 +2440,7 @@ const smiPsat = () => Object.keys(D.prava[platnaUroven()] || {})
                         .some(o => D.prava[platnaUroven()][o] === "zápis");
 
 // Verzi zvedáme ručně při každé změně, čas buildu doplňuje sanitize_public.py.
-const VERZE = "v5.112p";
+const VERZE = "v5.113p";
 // Čas buildu dřív zapisoval sanitize_public.py; od září se nahrává bez něj a zůstal tu 19. 9. 2026.
 // Prázdný BUILD = ukáže se čas nahrání souboru, který posílá server (document.lastModified), v5.108p.
 const BUILD = "";
@@ -6708,9 +6717,12 @@ function kresliSouhrnNoclehu(){
 
   let h = '<table class="tab" style="width:100%;min-width:700px"><thead><tr>'
     + '<th style="width:230px">Místo</th><th style="width:90px" class="stred">Lůžek</th>'
-    + '<th style="width:230px">Obsazeno</th><th>Kdo tam spí</th>'
+    + '<th style="width:230px">Obsazeno</th>'
+    + (D.nocHist && D.nocHist.mista && D.nocHist.mista.length && nocRok === null ? '<th style="width:110px" title="Obsazenost stejného místa v předchozím ročníku">Loni (' + esc(D.nocHist.rok) + ')</th>' : '')
+    + '<th>Kdo tam spí</th>'
     + '</tr></thead><tbody>';
 
+  const sLoni = !!(D.nocHist && D.nocHist.mista && D.nocHist.mista.length && nocRok === null);
   const radek = (m, noc) => {
     const kap = +m.kapacita || 0;
     const lide = noc ? (obs[noc].kde[m.kod] || []) : [];
@@ -6724,6 +6736,7 @@ function kresliSouhrnNoclehu(){
                 + (zbyva < 0 ? ('přeplněno o ' + (-zbyva)) : ('volno ' + zbyva)) + '</span>') : ''))
            : '<span style="color:var(--vinova)">bez noci — doplňte ji v tabulce</span>')
       + '</td>'
+      + (sLoni ? '<td style="padding:6px 8px;font-size:12px;color:var(--pisek)">' + esc((nocLoni(m) || {}).text || '—') + '</td>' : '')
       + '<td style="padding:6px 8px;font-size:11.5px;color:var(--pisek);line-height:1.45">'
         + (kdoTamSpi(lide) || '—') + '</td></tr>';
   };
@@ -6740,25 +6753,107 @@ function kresliSouhrnNoclehu(){
         + (sk.noc ? (pruh(c, kap) + c + ' z ' + kap
             + '<span style="font-weight:400;color:' + (zbyva < 0 ? 'var(--vinova)' : 'var(--pisek)') + '"> · '
             + (zbyva < 0 ? ('přeplněno o ' + (-zbyva)) : ('volno ' + zbyva)) + '</span>') : '')
-      + '</td><td></td></tr>';
+      + '</td>' + (sLoni ? '<td></td>' : '') + '<td></td></tr>';
     sk.mista.forEach(m=>{ h += radek(m, sk.noc); });
   });
 
   h += '</tbody><tfoot><tr style="font-weight:800">'
     + '<td style="padding:7px 8px">Celkem lůžek</td>'
     + '<td class="stred" style="padding:7px 8px">' + kapacita + '</td>'
-    + '<td colspan="2"></td></tr></tfoot></table>';
+    + '<td colspan="' + (sLoni ? 3 : 2) + '"></td></tr></tfoot></table>';
 
   const zdroje = [...new Set(NOCI.map(n=>obs[n].zdroj))].join(' a ');
   h += '<p class="popisek" style="margin:8px 0 0">Obsazenost se počítá z: ' + esc(zdroje)
     + '. Lidé bez přiděleného místa (vlastní nocleh, „' + esc(NERESI) + '") se nepočítají.</p>';
 
-  const kolize = NOCI.filter(n=>obs[n].jinde > 0);
-  if(kolize.length){
-    h += '<p class="popisek" style="margin:4px 0 0;color:var(--vinova)">Pozor: '
-      + esc(kolize.join(' a ')) + ' má vyplněno i u členů grup — počítá se tabulka noclehy — lidé.</p>';
-  }
   cil.innerHTML = h;
+}
+
+/* ---------- Noclehy a ročníky (Keksa 24. 10. 2026, v5.113p) ----------
+   Jako u Oblečení: přepínač ročníku (starší ročník jen ke čtení), loňská obsazenost u míst,
+   příprava nového ročníku jedním tlačítkem (místa z loňska, volitelně i nocleh lidem podle jména)
+   a sbalitelné karty. Data starších ročníků se načítají až na vyžádání a nikdy se neukládají. */
+let nocRok = null;            // null = aktivní ročník (editovatelný), jinak ročník jen ke čtení
+const nocCache = {};          // rok → {mista, clenove}
+function rokPredAktivnim(){ const i = ROKY.indexOf(D.nastaveni.aktivni_rok); return i > 0 ? ROKY[i - 1] : ''; }
+async function nactiNoclehyRoku(rok){
+  if(nocCache[rok]) return nocCache[rok];
+  const [m, c] = await Promise.all([
+    sbDotaz('noclehy_adresy?select=*&rok=eq.' + encodeURIComponent(rok)),
+    sbDotaz('clenove_tymu?select=*&rok=eq.' + encodeURIComponent(rok))]);
+  return (nocCache[rok] = { mista: m.map(r => zDb('nocMista', r)), clenove: c.map(r => zDb('clenove', r)) });
+}
+// Spustí kreslení s daty jiného ročníku (D se na chvíli podstrčí a hned vrátí).
+function sDatyRoku(data, fn){
+  const zal = { m: D.nocMista, c: D.clenove };
+  D.nocMista = data.mista; D.clenove = data.clenove;
+  try { fn(); } finally { D.nocMista = zal.m; D.clenove = zal.c; }
+}
+function kresliVyberNocRoku(){
+  const s = $('#nocRok'); if(!s) return;
+  const a = D.nastaveni.aktivni_rok, i = ROKY.indexOf(a);
+  const starsi = ROKY.slice(Math.max(0, i - 4), Math.max(0, i)).reverse();
+  s.innerHTML = '<option value="__aktivni">' + esc(a) + ' (aktivní)</option>'
+    + starsi.map(r => '<option value="' + esc(r) + '">' + esc(r) + ' – jen ke čtení</option>').join('');
+  s.value = nocRok === null ? '__aktivni' : nocRok;
+}
+async function nastavNocRok(v){
+  nocRok = (v === '__aktivni') ? null : v;
+  await kresliNocleh();
+}
+// Loňská obsazenost: podle kódu místa, jinak podle názvu.
+async function pripravNocHist(){
+  const lon = rokPredAktivnim();
+  if(!lon || (D.nocHist && D.nocHist.rok === lon)) return;
+  try {
+    const d = await nactiNoclehyRoku(lon);
+    D.nocHist = { rok: lon, mista: d.mista, clenove: d.clenove };
+  } catch(e){ D.nocHist = { rok: lon, mista: [], clenove: [] }; }
+}
+function nocLoni(m){
+  const h = D.nocHist; if(!h || !h.mista || !h.mista.length) return null;
+  const l = h.mista.find(x => x.kod === m.kod) || h.mista.find(x => String(x.nazev || '').trim().toLowerCase() === String(m.nazev || '').trim().toLowerCase());
+  if(!l) return { text: 'loni nebylo' };
+  const pole = POLE_NOCI[l.noc] || '';
+  const c = pole ? h.clenove.filter(x => !x.historie && x[pole] === l.kod).length : 0;
+  return { text: c + ' z ' + (+l.kapacita || '?') };
+}
+function kresliNovyRocnikNoclehu(){
+  const el = $('#novyRocnikNoc'); if(!el) return;
+  const h = D.nocHist;
+  if(nocRok !== null || (D.nocMista || []).length || !h || !h.mista || !h.mista.length){ el.innerHTML = ''; return; }
+  const a = D.nastaveni.aktivni_rok;
+  el.innerHTML = '<div class="varovani" style="margin:0 0 14px"><b>Noclehy pro ' + esc(a) + ' jsou zatím prázdné.</b> '
+    + '<button class="tl" id="tlNovyRocnikNoc">Připravit podle ' + esc(h.rok) + '</button> '
+    + '<label style="font-size:12.5px;margin-left:8px"><input type="checkbox" id="nocPredvyplnit" checked> '
+    + 'předvyplnit lidem jejich nocleh z ' + esc(h.rok) + ' (podle jména)</label><br>'
+    + '<span class="popisek">Zkopíruje ' + h.mista.length + ' míst (adresy, kapacity, kontakty, ceny); rezervace se vynulují, '
+    + 'ať je vidět, co je potřeba znovu domluvit. Místa dostanou odznak „z ' + esc(h.rok) + '“. Nic se neuloží, dokud nedáte Uložit do databáze.</span></div>';
+  $('#tlNovyRocnikNoc').onclick = () => pripravNovyRocnikNoclehu();
+}
+function pripravNovyRocnikNoclehu(){
+  if(!smiPsat()){ hlaska('Na tohle nemáte právo.'); return; }
+  const h = D.nocHist, a = D.nastaveni.aktivni_rok;
+  D.nocMista = h.mista.map(m => Object.assign({}, m, { rezervace: '', zRocniku: h.rok, _nove: true }));
+  let n = 0;
+  if($('#nocPredvyplnit') && $('#nocPredvyplnit').checked){
+    const kody = new Set(D.nocMista.map(m => m.kod));
+    const lonsky = {};
+    h.clenove.filter(c => !c.historie).forEach(c => { lonsky[String(c.jmeno || '').trim().toLowerCase()] = c; });
+    zivi().forEach(c => {
+      const l = lonsky[String(c.jmeno || '').trim().toLowerCase()]; if(!l) return;
+      let zmena = false;
+      NOCI.forEach(noc => { const p = POLE_NOCI[noc];
+        if(!c[p] && l[p] && (l[p] === NERESI || kody.has(l[p]))){ c[p] = l[p]; zmena = true; } });
+      if(zmena) n++;
+    });
+  }
+  oznacZmenu(); kresliNocleh();
+  hlaska('Noclehy pro ' + a + ' připravené podle ' + h.rok + ': ' + D.nocMista.length + ' míst'
+    + (n ? ', nocleh předvyplněn ' + n + ' lidem' : '') + '. Zkontrolujte a uložte do databáze.');
+}
+function sbalVseNoclehy(sbalit){
+  document.querySelectorAll('#s-noclehy-mista .karta').forEach(k => nastavSbaleni(k, sbalit, true));
 }
 
 /* ---------- 7. Noclehy: kdo kde spí (Keksa 24. 10. 2026, v5.112p) ----------
@@ -6780,7 +6875,29 @@ function volbyNoci(noc, r){
   if(ted && !v.some(x => x.v === ted)) v.push({v:ted, t:(misto(ted) ? (misto(ted).nazev || ted) : ted) + ' (jiná noc)'});
   return v;
 }
-function kresliNocleh(){ kresliNocMista(); kresliNocKdo(); }
+async function kresliNocleh(){
+  kresliVyberNocRoku();
+  const cteni = $('#nocCteni');
+  if(nocRok === null){
+    if(cteni) cteni.innerHTML = '';
+    await pripravNocHist();
+    kresliNocMista(); kresliNocKdo(); kresliNovyRocnikNoclehu();
+    return;
+  }
+  let data;
+  try { data = await nactiNoclehyRoku(nocRok); }
+  catch(e){ if(cteni) cteni.innerHTML = '<div class="varovani">Noclehy ' + esc(nocRok) + ' se nenačetly: ' + esc(e.message) + '</div>'; return; }
+  if(cteni) cteni.innerHTML = '<div class="varovani" style="margin:0 0 14px"><b>Prohlížíte ' + esc(nocRok) + ' – jen ke čtení.</b> '
+    + (data.mista.length ? '' : 'V tomhle ročníku nejsou v databázi žádná místa noclehu. ')
+    + 'Upravovat jde jen aktivní ročník ' + esc(D.nastaveni.aktivni_rok) + '.</div>';
+  kresliNovyRocnikNoclehu();
+  sDatyRoku(data, () => { kresliNocMista(); kresliNocKdo(); });
+  // jen ke čtení: zamknout pole kromě filtrů, lišty a sbalování
+  document.querySelectorAll('#s-noclehy-mista input, #s-noclehy-mista select, #s-noclehy-mista textarea, #s-noclehy-mista button').forEach(el => {
+    if(el.closest('.ft-radek,.ft-info,.noc-lista') || el.id === 'nocJenBez') return;
+    el.disabled = true;
+  });
+}
 function kresliNocPocty(){
   const el = $('#nocPocty'); if(!el) return;
   const lide = zivi();
@@ -6796,7 +6913,7 @@ function kresliNocPocty(){
 }
 function nocRychlyFiltr(zapnout){
   nocJenNevyreseni = (zapnout === true) ? true : !nocJenNevyreseni;
-  kresliNocKdo();
+  if(nocRok === null) kresliNocKdo(); else kresliNocleh();
   if(nocJenNevyreseni){ const t = $('#tabNocKdo'); if(t) t.closest('.karta').scrollIntoView({behavior:'smooth', block:'start'}); }
 }
 function naplnNocHromMisto(){
@@ -6828,6 +6945,7 @@ function kresliNocKdo(){
     + (nocJenNevyreseni ? 'Všichni mají nocleh vyřešený.' : 'V Členech grup zatím nikdo není.') + '</td></tr></tbody>';
 }
 function nocPridelVybranym(){
+  if(nocRok !== null){ hlaska('Starší ročník jde jen prohlížet.'); return; }
   if(!smiPsat()){ hlaska('Na tohle nemáte právo — noclehy jdou jen číst.'); return; }
   const t = $('#tabNocKdo'), noc = $('#nocHromNoc').value, kam = $('#nocHromMisto').value;
   const vybrani = [...t.querySelectorAll('input.nocVyber:checked')].map(c => nocRadky[+c.dataset.n]).filter(Boolean);
@@ -9253,7 +9371,7 @@ function prepniPodObleceni(kod){
 const KLIC_SBALENO = 'hb_obleceni_sbaleno';
 function stavSbaleni(){ try { return JSON.parse(localStorage.getItem(KLIC_SBALENO) || '{}'); } catch(e){ return {}; } }
 function ulozSbaleni(st){ try { localStorage.setItem(KLIC_SBALENO, JSON.stringify(st)); } catch(e){} }
-function kartyObleceni(){ return [...document.querySelectorAll('#s-tricka .karta')]; }
+function kartyObleceni(){ return [...document.querySelectorAll('#s-tricka .karta, #s-noclehy-mista .karta')]; }   // i Noclehy (v5.113p)
 function nadpisKarty(k){ const h = k.querySelector(':scope > h2'); return h ? (h.dataset.nazev || h.textContent.trim()) : ''; }
 function nastavSbaleni(k, sbalit, zapamatovat){
   k.classList.toggle('sbalena', sbalit);
@@ -9286,12 +9404,12 @@ function zarizSbalovaniObleceni(){
     nastavSbaleni(k, ulozeno === undefined ? k.dataset.sbalena === '1' : ulozeno, false);
   });
   // tabulky se kreslí až po načtení dat – počet řádků u sbalených karet se dopočítá
-  const s = $('#s-tricka');
-  if(s && window.MutationObserver){
+  if(window.MutationObserver) ['#s-tricka', '#s-noclehy-mista'].forEach(sel => {   // i Noclehy (v5.113p)
+    const s = $(sel); if(!s) return;
     let cekani = null;
     new MutationObserver(() => { clearTimeout(cekani); cekani = setTimeout(udajeSbalenychKaret, 300); })
       .observe(s, { childList: true, subtree: true });
-  }
+  });
 }
 /* ---------- Oblečení a ročníky (Keksa 24. 10. 2026, v5.110p) ----------
    Vstupy ročníku (týmy, běžci na tým, rezerva, barva, logo…) jsou v Nastavení ročníku
