@@ -739,7 +739,11 @@ details.sbal-obl[open] > summary{margin-bottom:8px}
 #s-tricka .karta > h2:focus-visible{outline:2px solid var(--vinova);outline-offset:-2px}
 #s-tricka .karta > h2 .sbal-udaj{margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--pisek)}
 #s-tricka .karta:not(.sbalena) > h2 .sbal-udaj{display:none}
-.sbal-vse{margin-left:auto;display:flex;gap:6px}
+.sbal-vse{display:flex;gap:6px}
+.obl-rok{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--tmava)}
+.obl-rok select{font:inherit;font-weight:400;padding:4px 8px;border:1px solid var(--linka);border-radius:8px;background:#fff}
+.tab tr.skupinaZbozi td{background:#F3EFE6;font-weight:800;font-size:12.5px;color:var(--olive);padding:7px 8px}
+.rok-pozn{font-size:12.5px;color:var(--vinova);margin:0 0 8px}
 .sbal-vse button{font:inherit;font-size:12.5px;border:1px solid var(--linka);background:#fff;color:var(--tmava);border-radius:8px;padding:4px 10px;cursor:pointer}
 /* Filtry a řazení nad tabulkami (v5.109p) */
 .tab.ft tbody tr:nth-child(even){background:inherit}
@@ -1374,11 +1378,14 @@ th.ft-razeni:hover{color:var(--tmava)}
       <button type="button" role="tab" data-pod="sklad" title="Co máme fyzicky na place" onclick="prepniPodObleceni('sklad')" aria-selected="false">Sklad</button>
       <button type="button" role="tab" data-pod="dodavatel" title="Jarní a letní kolo, počítání várek" onclick="prepniPodObleceni('dodavatel')" aria-selected="false">Objednávka u dodavatele</button>
       <button type="button" role="tab" data-pod="katalog" title="Co vůbec existuje – mění se párkrát za rok" onclick="prepniPodObleceni('katalog')" aria-selected="false">Katalog</button>
+      <label class="obl-rok" title="Objednávky, formuláře, poptávka, dodavatelé, vlny a pohyby se ukážou jen za tenhle ročník. Sklad a katalog jsou společné.">Ročník
+        <select id="oblRok" data-filtr onchange="nastavOblRok(this.value)"></select></label>
       <span class="sbal-vse">
         <button type="button" title="Rozbalí všechny karty v téhle části" onclick="sbalVseObleceni(false)">Rozbalit vše</button>
         <button type="button" title="Sbalí všechny karty v téhle části" onclick="sbalVseObleceni(true)">Sbalit vše</button>
       </span>
     </div>
+    <div id="novyRocnikObl"></div>
 
     <div class="karta" data-pod="lidi">
       <h2>Objednávky účastníků</h2>
@@ -1454,6 +1461,9 @@ th.ft-razeni:hover{color:var(--tmava)}
         <div class="obal-tab"><table class="tab" id="tabPohyby"></table></div>
         <button class="tl" id="tlVsePohyby" style="margin-top:10px;margin-right:6px" onclick="vsePohyby=!vsePohyby;omezPohyby()">Zobrazit vše</button>
         <button class="tl" style="margin-top:10px" title="Přidá další pohyb na skladě." onclick="pridej('pohyb')">+ Přidat pohyb</button>
+        <button class="tl" style="margin-top:10px" title="Spočítat, co je opravdu na skladě, a zapsat rozdíly" onclick="prepniInventuru()">Inventura</button>
+        <div id="inventura"></div>
+        <div id="pohybyPoRocich"></div>
       </div>
     </div>
 
@@ -2401,7 +2411,7 @@ const smiPsat = () => Object.keys(D.prava[platnaUroven()] || {})
                         .some(o => D.prava[platnaUroven()][o] === "zápis");
 
 // Verzi zvedáme ručně při každé změně, čas buildu doplňuje sanitize_public.py.
-const VERZE = "v5.109p";
+const VERZE = "v5.110p";
 // Čas buildu dřív zapisoval sanitize_public.py; od září se nahrává bez něj a zůstal tu 19. 9. 2026.
 // Prázdný BUILD = ukáže se čas nahrání souboru, který posílá server (document.lastModified), v5.108p.
 const BUILD = "";
@@ -9121,9 +9131,12 @@ function poleText(popis, klic){
 }
 
 function kresliTricka(){
+  kresliVyberOblRoku(); kresliNovyRocnikObleceni();
   // vstupy
   const v = $('#vstupyTricka');
-  v.innerHTML = poleCislo('Zaplacené týmy','tymy_zaplaceno')
+  const jinyRok = oblRokTed() !== D.nastaveni.aktivni_rok;
+  v.innerHTML = (jinyRok ? '<p class="rok-pozn" style="flex-basis:100%">Vstupy a várky platí pro aktivní ročník ' + esc(D.nastaveni.aktivni_rok) + ', ne pro ročník vybraný nahoře.</p>' : '')
+    + poleCislo('Zaplacené týmy','tymy_zaplaceno')
     + poleCislo('Očekávané týmy','tymy_ocekavano')
     + poleCislo('Běžců na tým','koeficient', 0.1)
     + poleCislo('Rezerva v %','rezerva_pct')
@@ -9131,7 +9144,8 @@ function kresliTricka(){
     + poleText('Velikost loga','velikost_loga')
     + poleText('Barva loga','barva_loga');
   v.querySelectorAll('input').forEach(el=>{
-    el.onchange = ()=>{ tr()[el.dataset.t] = el.type==='number' ? (+el.value||0) : el.value; kresliTricka(); };
+    el.onchange = ()=>{ tr()[el.dataset.t] = el.type==='number' ? (+el.value||0) : el.value;
+      vstupDoPravidel(el.dataset.t, el.value === '' ? '' : (el.type==='number' ? (+el.value||0) : el.value)); kresliTricka(); };
   });
 
   const bezci = bezciCelkem();
@@ -9157,7 +9171,8 @@ function kresliTricka(){
   const t = $('#tabTricka');
   let h = '<thead><tr>'
     + '<th style="width:56px"></th><th style="width:150px"'+nap('Velikost')+'>Velikost</th>'
-    + '<th style="width:70px"'+nap('HB24 %')+'>HB24 %</th><th style="width:70px"'+nap('HB25 %')+'>HB25 %</th><th style="width:86px"'+nap('HB26 dosud %')+'>HB26 dosud %</th>'
+    + rokyHistorieVelikosti().map(rk => '<th style="width:70px" title="Podíl velikosti v ročníku '+rk+' podle objednaných várek">'+rk+' %</th>').join('')
+    + '<th style="width:86px" title="Podíl v aktivním ročníku podle dosavadních objednávek">'+esc(D.nastaveni.aktivni_rok)+' dosud %</th>'
     + '<th style="width:86px"'+nap('Odhad %')+'>Odhad %</th><th style="width:80px"'+nap('Běžci')+'>Běžci</th><th style="width:90px"'+nap('Pomocníci')+'>Pomocníci</th>'
     + '<th style="width:80px"'+nap('Potřeba')+'>Potřeba</th><th style="width:86px"'+nap('+rezerva')+'>+rezerva</th>'
     + '<th style="width:86px"'+nap('1. várka')+'>1. várka</th><th style="width:86px"'+nap('2. várka')+'>2. várka</th><th style="width:86px"'+nap('3. várka')+'>3. várka</th>'
@@ -9169,9 +9184,10 @@ function kresliTricka(){
     h += '<tr'+(chybi?' style="background:#FBF1F2"':'')+'>'
       + '<td class="odzn">'+odznakHtml(x)+'</td>'
       + '<td style="padding:7px 8px;font-size:13px;font-weight:700">'+esc(x.rada)+' '+esc(x.kod)+'</td>'
-      + '<td class="stred" style="padding:7px;font-size:12px;color:var(--pisek)">'+x.hb24.toFixed(1)+'</td>'
-      + '<td class="stred" style="padding:7px;font-size:12px;color:var(--pisek)">'+x.hb25.toFixed(1)+'</td>'
-      + '<td class="stred" style="padding:7px;font-size:12px;color:var(--pisek)">'+x.hb26.toFixed(1)+'</td>'
+      + rokyHistorieVelikosti().map(rk => { const p = podilVelikostiVRoce(x, rk);
+          return '<td class="stred" style="padding:7px;font-size:12px;color:var(--pisek)">'+(p == null ? '—' : p.toFixed(1))+'</td>'; }).join('')
+      + (() => { const d = x['hb' + String(D.nastaveni.aktivni_rok).slice(2)];
+          return '<td class="stred" style="padding:7px;font-size:12px;color:var(--pisek)">'+(d == null || d === '' ? '—' : Number(d).toFixed(1))+'</td>'; })()
       + '<td class="stred"><input type="number" step="0.1" data-i="'+i+'" data-p="odhad" value="'+x.odhad+'"></td>'
       + '<td class="stred" style="padding:7px;font-size:13px">'+bez+'</td>'
       + '<td class="stred"><input type="number" data-i="'+i+'" data-p="pomocnici" value="'+(x.pomocnici||0)+'"></td>'
@@ -9185,7 +9201,7 @@ function kresliTricka(){
       + (zb>0?zb:(zb<0?'+'+(-zb):'0'))+'</td></tr>';
   });
   h += '<tr style="background:#F3EFE6;font-weight:800"><td></td><td style="padding:8px">Celkem</td>'
-     + '<td></td><td></td><td></td>'
+     + rokyHistorieVelikosti().map(() => '<td></td>').join('') + '<td></td>'
      + '<td class="stred">'+D.velikosti.reduce((a,x)=>a+(x.odhad||0),0).toFixed(1)+'</td>'
      + '<td class="stred">'+bezci+'</td><td class="stred">'+pom+'</td><td class="stred">'+potr+'</td>'
      + '<td class="stred">'+rez+'</td>'
@@ -9206,6 +9222,7 @@ function kresliTricka(){
 
   kresliObjednavky();
   kresliObleceni();
+  kresliSouhrnPohybu(); kresliInventuru();
 }
 
 
@@ -9273,6 +9290,185 @@ function zarizSbalovaniObleceni(){
       .observe(s, { childList: true, subtree: true });
   }
 }
+/* ---------- Oblečení a ročníky (Keksa 24. 10. 2026, v5.110p) ----------
+   Vstupy ročníku (týmy, běžci na tým, rezerva, barva, logo…) jsou v Nastavení ročníku
+   jako parametry obl_* a ukládají se jako ostatní pravidla (planovac_uloz_pravidlo).
+   Přepínač ročníku nahoře omezuje objednávky, formuláře, poptávku, dodavatele, vlny
+   a pohyby; sklad (Skladem) a katalog jsou společné pro všechny roky. */
+const OBL_VSTUPY = { tymy_zaplaceno:'obl_tymy_zaplaceno', tymy_ocekavano:'obl_tymy_ocekavano',
+  koeficient:'obl_bezcu_na_tym', rezerva_pct:'obl_rezerva_pct', barva:'obl_barva',
+  velikost_loga:'obl_velikost_loga', barva_loga:'obl_barva_loga', dodavatel:'obl_dodavatel',
+  model_pansky:'obl_model_pansky', model_damsky:'obl_model_damsky' };
+// Hodnoty z pravidel aktivního ročníku do D.tricka. Ročník bez uložených vstupů začne od nuly,
+// ať se omylem neplánuje s čísly jiného roku.
+function vstupyZPravidel(){
+  const p = D.nastaveni.pravidla || {};
+  const nejaky = Object.values(OBL_VSTUPY).some(k => p[k] != null);
+  Object.entries(OBL_VSTUPY).forEach(([t, k]) => {
+    const cislo = ['tymy_zaplaceno','tymy_ocekavano','koeficient','rezerva_pct'].indexOf(t) >= 0;
+    if(p[k] != null) D.tricka[t] = cislo ? Number(p[k]) : String(p[k]);
+    else if(!nejaky) D.tricka[t] = cislo ? 0 : '';
+  });
+}
+function vstupDoPravidel(t, h){
+  const k = OBL_VSTUPY[t]; if(!k) return;
+  if(!D.nastaveni.pravidla) D.nastaveni.pravidla = {};
+  if(h === '' || h == null) delete D.nastaveni.pravidla[k]; else D.nastaveni.pravidla[k] = h;
+  PRAVIDLA_ZMENENA.add(k); oznacZmenu();
+}
+
+const KLIC_OBL_ROK = 'hb_obleceni_rok';
+let oblRok = (() => { try { const v = localStorage.getItem(KLIC_OBL_ROK); return v === null ? null : v; } catch(e){ return null; } })();
+const oblRokTed = () => oblRok === null ? D.nastaveni.aktivni_rok : oblRok;      // '' = všechny ročníky
+const rokSedi = r => { const k = oblRokTed(); return !k || !r || r._nove || (r.rok || '') === k; };
+function nastavOblRok(v){
+  oblRok = (v === '__aktivni') ? null : v;
+  try { if(oblRok === null) localStorage.removeItem(KLIC_OBL_ROK); else localStorage.setItem(KLIC_OBL_ROK, oblRok); } catch(e){}
+  kresliTricka();
+}
+function kresliVyberOblRoku(){
+  const s = $('#oblRok'); if(!s) return;
+  const a = D.nastaveni.aktivni_rok;
+  const roky = [...new Set([...D.obleceniObjednavky, ...D.dodObjednavky, ...D.formulare, ...D.objednavky, ...D.skladPohyby]
+                  .map(x => x.rok).filter(r => r && r !== a))].sort().reverse();
+  s.innerHTML = '<option value="__aktivni">' + esc(a) + ' (aktivní)</option>'
+    + roky.map(r => '<option value="' + esc(r) + '">' + esc(r) + '</option>').join('')
+    + '<option value="">všechny ročníky</option>';
+  s.value = oblRok === null ? '__aktivni' : (roky.indexOf(oblRok) >= 0 || oblRok === '' ? oblRok : '__aktivni');
+}
+
+// Historie podílů velikostí: tři ročníky před aktivním. Podíl roku se počítá z jeho objednaných
+// várek (řádky tricka_velikosti toho roku); kde řádky nejsou, vezme se sloupec hbNN, pokud existuje.
+function rokyHistorieVelikosti(){
+  const i = ROKY.indexOf(D.nastaveni.aktivni_rok);
+  return i < 0 ? [] : ROKY.slice(Math.max(0, i - 3), i);
+}
+function podilVelikostiVRoce(x, rok){
+  const hist = (D.velikostiHist || []).filter(r => r.rok === rok);
+  const obj = r => (+r.varka1 || 0) + (+r.varka2 || 0) + (+r.varka3 || 0);
+  const soucet = hist.reduce((a, r) => a + obj(r), 0);
+  if(soucet > 0){ const m = hist.find(r => r.rada === x.rada && r.kod === x.kod); return m ? obj(m) / soucet * 100 : 0; }
+  const v = x['hb' + rok.slice(2)];
+  return (v === null || v === undefined || v === '') ? null : Number(v);
+}
+
+// Sortiment: letošní nabídka, zbytky z minulých ročníků, nenabízí se.
+const skladZbozi = z => D.zboziVarianty.filter(v => v.zbozi_kod === z.kod).reduce((a, v) => a + skladVarianty(v.kod), 0);
+function skupinaZbozi(z){
+  const rok = oblRokTed() || D.nastaveni.aktivni_rok;
+  if(z.aktivni === 'ne') return 3;
+  if(!z.rok || z.rok === rok) return 1;
+  if(ROKY.indexOf(z.rok) >= 0 && ROKY.indexOf(z.rok) < ROKY.indexOf(rok) && skladZbozi(z) > 0) return 2;
+  return 3;
+}
+function nadpisSkupinyZbozi(s){
+  const rok = oblRokTed() || D.nastaveni.aktivni_rok;
+  return s === 1 ? 'Letošní nabídka – ' + rok + ' (nadčasové zboží a zboží ročníku)'
+       : s === 2 ? 'Zbytky z minulých ročníků – prodej ze skladu'
+       : 'Nenabízí se (vypnuté, vyprodané nebo jiného ročníku)';
+}
+
+// Sklad přes roky: souhrn pohybů po ročnících a inventura.
+function kresliSouhrnPohybu(){
+  const el = $('#pohybyPoRocich'); if(!el) return;
+  const sum = {}, roky = new Set();
+  D.skladPohyby.forEach(p => {
+    const r = p.rok || '(bez ročníku)'; roky.add(r);
+    sum[r] = sum[r] || {}; sum[r][p.duvod] = (sum[r][p.duvod] || 0) + (+p.zmena || 0);
+  });
+  const rr = [...roky].sort();
+  if(!rr.length){ el.innerHTML = ''; return; }
+  const duvody = DUVODY_POHYBU.filter(d => rr.some(r => sum[r][d]));
+  el.innerHTML = '<h3 style="margin:18px 0 6px;font-size:15px">Pohyby po ročnících</h3>'
+    + '<p class="popisek">Součet změn podle důvodu. Skladem je součet přes všechny roky — zbytky z loňska tedy na skladě zůstávají.</p>'
+    + '<div class="obal-tab"><table class="tab"><thead><tr><th>Ročník</th>'
+    + duvody.map(d => '<th>' + esc(d.replace(/_/g, ' ')) + '</th>').join('') + '<th>Celkem</th></tr></thead><tbody>'
+    + rr.map(r => '<tr><td style="padding:6px 8px;font-weight:700">' + esc(r) + '</td>'
+        + duvody.map(d => '<td class="stred" style="padding:6px">' + (sum[r][d] ? (sum[r][d] > 0 ? '+' : '') + sum[r][d] : '') + '</td>').join('')
+        + '<td class="stred" style="padding:6px;font-weight:800">' + Object.values(sum[r]).reduce((a, b) => a + b, 0) + '</td></tr>').join('')
+    + '</tbody></table></div>';
+}
+let inventuraOtevrena = false;
+function prepniInventuru(){ inventuraOtevrena = !inventuraOtevrena; kresliInventuru(); }
+function kresliInventuru(){
+  const el = $('#inventura'); if(!el) return;
+  if(!inventuraOtevrena){ el.innerHTML = ''; return; }
+  const a = D.nastaveni.aktivni_rok;
+  const varianty = D.zboziVarianty.filter(v => v.aktivni !== 'ne' || skladVarianty(v.kod) !== 0)
+    .map(v => ({ v, z: D.zbozi.find(x => x.kod === v.zbozi_kod) || {} }))
+    .sort((p, q) => String(p.z.nazev || '').localeCompare(String(q.z.nazev || ''), 'cs')
+                  || poradiStrihu(p.v.strih) - poradiStrihu(q.v.strih)
+                  || poradiVelikosti(p.v.velikost_kod) - poradiVelikosti(q.v.velikost_kod));
+  el.innerHTML = '<div class="varovani" style="margin-top:12px"><b>Inventura.</b> U každé velikosti napište, kolik kusů je opravdu na skladě'
+    + ' (prázdné = nepočítáno). Rozdíl proti stavu v plánovači se zapíše jako pohyb „inventura“ k ročníku ' + esc(a) + '.</div>'
+    + '<div class="obal-tab"><table class="tab"><thead><tr><th>Zboží</th><th style="width:170px">Velikost</th>'
+    + '<th style="width:90px">Skladem</th><th style="width:110px">Spočítáno</th><th style="width:90px">Rozdíl</th></tr></thead><tbody>'
+    + varianty.map(({ v, z }) => '<tr><td style="padding:6px 8px">' + esc(z.nazev || v.zbozi_kod) + '</td>'
+        + '<td style="padding:6px 8px">' + esc(popisVarianty(v)) + '</td>'
+        + '<td class="stred" style="padding:6px">' + skladVarianty(v.kod) + '</td>'
+        + '<td class="stred"><input type="number" min="0" step="1" data-inv="' + esc(v.kod) + '"></td>'
+        + '<td class="stred" style="padding:6px;font-weight:800" data-roz="' + esc(v.kod) + '"></td></tr>').join('')
+    + '</tbody></table></div>'
+    + '<button class="tl" id="tlZapsatInventuru" style="margin-top:10px">Zapsat rozdíly</button> '
+    + '<button class="tl" style="margin-top:10px" onclick="prepniInventuru()">Zavřít</button>';
+  el.querySelectorAll('input[data-inv]').forEach(i => {
+    i.oninput = () => {
+      const bunka = [...el.querySelectorAll('td[data-roz]')].find(td => td.dataset.roz === i.dataset.inv);
+      const d = i.value === '' ? null : (+i.value - skladVarianty(i.dataset.inv));
+      if(bunka) bunka.textContent = d === null ? '' : (d > 0 ? '+' : '') + d;
+    };
+  });
+  $('#tlZapsatInventuru').onclick = () => {
+    if(!smiPsat()){ hlaska('Na tohle nemáte právo — sklad jde jen číst.'); return; }
+    const dnes = new Date().toISOString().slice(0, 10);
+    let n = 0;
+    el.querySelectorAll('input[data-inv]').forEach(i => {
+      if(i.value === '') return;
+      const d = +i.value - skladVarianty(i.dataset.inv);
+      if(!d) return;
+      D.skladPohyby.push({ kod: 'p' + Date.now() + '-' + (n++), varianta_kod: i.dataset.inv, datum: dnes, zmena: d,
+                           duvod: 'inventura', rok: a, poznamka: 'inventura ' + dnes, _nove: true });
+    });
+    if(!n){ hlaska('Žádný rozdíl — nic se nezapsalo.'); return; }
+    inventuraOtevrena = false; oznacZmenu(); kresliTricka();
+    hlaska('Inventura: zapsáno ' + n + ' ' + (n === 1 ? 'pohyb' : n < 5 ? 'pohyby' : 'pohybů') + '. Uloží se při uložení do databáze.');
+  };
+}
+
+// Nový ročník jedním tlačítkem: když je aktivní ročník v Oblečení prázdný, nabídne kopii z minulého.
+function kresliNovyRocnikObleceni(){
+  const el = $('#novyRocnikObl'); if(!el) return;
+  const a = D.nastaveni.aktivni_rok;
+  const minuly = [...new Set((D.velikostiHist || []).map(r => r.rok))]
+    .filter(r => ROKY.indexOf(r) >= 0 && ROKY.indexOf(r) < ROKY.indexOf(a)).sort().pop();
+  if(D.velikosti.length || !minuly){ el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="varovani" style="margin:0 0 14px"><b>Oblečení pro ' + esc(a) + ' je zatím prázdné.</b> '
+    + '<button class="tl" id="tlNovyRocnikObl" data-filtr>Připravit podle ' + esc(minuly) + '</button><br>'
+    + '<span class="popisek">Zkopíruje vstupy ročníku a velikosti (odhad podílů zůstane, várky a pomocníci od nuly); '
+    + 'řádky dostanou odznak „z ' + esc(minuly) + '“. Nic se neuloží, dokud nedáte Uložit do databáze. '
+    + 'Nový objednávkový formulář založíte v Objednávky lidí → Objednávkové formuláře, nabízené zboží v Katalogu.</span></div>';
+  $('#tlNovyRocnikObl').onclick = () => pripravNovyRocnikObleceni(minuly);
+}
+async function pripravNovyRocnikObleceni(minuly){
+  if(!smiPsat()){ hlaska('Na tohle nemáte právo.'); return; }
+  const a = D.nastaveni.aktivni_rok;
+  let radky = [];
+  try { radky = await sbDotaz('tricka_velikosti?select=*&rok=eq.' + encodeURIComponent(minuly)); }
+  catch(e){ chyba('Velikosti z ' + minuly + ' se nenačetly: ' + e.message, 'Nepovedlo se'); return; }
+  D.velikosti = radky.map(r => ({ rada:r.rada, kod:r.kod, poradi:r.poradi, hb24:r.hb24, hb25:r.hb25, hb26:r.hb26,
+    odhad:r.odhad, pomocnici:0, varka1:0, varka2:0, varka3:0, zRocniku:minuly }));
+  try {
+    const p = await sbDotaz('rpc/planovac_pravidla', { method:'POST', body: JSON.stringify({ p_rok: minuly }) }) || {};
+    if(!D.nastaveni.pravidla) D.nastaveni.pravidla = {};
+    Object.values(OBL_VSTUPY).forEach(k => {
+      if(p[k] != null && D.nastaveni.pravidla[k] == null){ D.nastaveni.pravidla[k] = p[k]; PRAVIDLA_ZMENENA.add(k); }
+    });
+    vstupyZPravidel();
+  } catch(e){ /* vstupy se dají vyplnit ručně */ }
+  oznacZmenu(); kresliTricka(); prepniPodObleceni('dodavatel');
+  hlaska('Oblečení pro ' + a + ' je připravené podle ' + minuly + '. Zkontrolujte vstupy a odhady, pak Uložit do databáze.');
+}
+
 /* ---------- Filtry a řazení nad tabulkami (Keksa 24. 10. 2026, v5.109p) ----------
    Jeden mechanismus pro všechny tabulky: pod hlavičkou řádek filtrů, klik na nadpis řadí,
    nad tabulkou „Zobrazeno X z Y · Zrušit filtry“. Filtry a řazení jen schovávají
@@ -9294,6 +9490,9 @@ const FT_TABULKY = [
       'Ks':'cislo','Kč':'cislo','VS':'text','Zaplaceno':'vyber','Stav':'vyber' },
     jeData: tr => tr.classList.contains('objRadek'),
     pripojene: tr => { const d = tr.nextElementSibling; return d && d.classList.contains('objDetail') ? [d] : []; } },
+  { id:'formulare', sel:'#tabFormulare', rokSloupec:'Ročník', sloupce:{ 'Kód':'text','Název':'text','Typ':'vyber','Ročník':'vyber','Uzávěrka':'datum' } },
+  { id:'dod-objednavky', sel:'#tabDodObjednavky', rokSloupec:'Ročník', sloupce:{ 'Kód':'text','Výrobce':'vyber','Ročník':'vyber','Datum':'datum','Stav':'vyber','Poznámka':'text' } },
+  { id:'vlny', sel:'#tabObjednavky', rokSloupec:'Ročník', sloupce:{ 'Ročník':'vyber','Vlna':'cislo','Datum':'datum','Kusů':'cislo','Poznámka':'text' } },
 ];
 const FT_KLIC = 'hb_filtry_tabulek';
 let ftStav = (() => { try { return JSON.parse(localStorage.getItem(FT_KLIC) || '{}'); } catch(e){ return {}; } })();
@@ -9398,8 +9597,12 @@ function ftObnov(t, cfg){
   // filtrování
   const radky = ftRadky(t, cfg);
   let videt = 0;
+  // ročník z přepínače nahoře v Oblečení (nové neuložené řádky jsou vidět vždy)
+  const rokF = cfg.rokSloupec && typeof oblRokTed === 'function' ? oblRokTed() : '';
+  const kRok = rokF ? sl.findIndex(s => s.nadpis === cfg.rokSloupec) : -1;
   radky.forEach(tr => {
-    const ok = sl.every(s => !s.typ || ftSedi(ftHodnota(tr.cells[s.k]), s.typ, st.f[s.nadpis]));
+    const ok = sl.every(s => !s.typ || ftSedi(ftHodnota(tr.cells[s.k]), s.typ, st.f[s.nadpis]))
+      && (kRok < 0 || tr.classList.contains('novy') || ftHodnota(tr.cells[kRok]) === rokF);
     tr.style.display = ok ? '' : 'none';
     (cfg.pripojene ? cfg.pripojene(tr) : []).forEach(p => { p.style.display = ok ? '' : 'none'; });
     if(ok) videt++;
@@ -9534,7 +9737,7 @@ function omezPohyby(){
   }
   const zb = selZb ? selZb.value : '', du = selDu ? selDu.value : '';
   const odpovida = D.skladPohyby.map(p =>
-    (!zb || (varPodleKodu[p.varianta_kod] || {}).zbozi_kod === zb) && (!du || p.duvod === du));
+    (!zb || (varPodleKodu[p.varianta_kod] || {}).zbozi_kod === zb) && (!du || p.duvod === du) && rokSedi(p));
   const poradi = D.skladPohyby.map((p,i) => i).filter(i => odpovida[i])
     .sort((a,b) => String(D.skladPohyby[b].datum||'').localeCompare(String(D.skladPohyby[a].datum||'')));
   const vidim = new Set(vsePohyby ? poradi : poradi.slice(0, POHYBU_NA_STRANCE));
@@ -9622,7 +9825,8 @@ function kresliObleceni(){
   naplnFiltryZbozi();
 
   // --- zboží ---
-  const zbozi = zbozdiKVideni();
+  const zbozi = zbozdiKVideni().map((z, n) => ({ z, n, s: skupinaZbozi(z) }))
+    .sort((a, b) => a.s - b.s || a.n - b.n).map(x => x.z);
   const t = $('#tabZbozi');
   const vyber = (i, p, hodnota, sada) =>
     '<td><select data-i="'+i+'" data-p="'+p+'"><option value=""></option>'
@@ -9641,7 +9845,10 @@ function kresliObleceni(){
       + '<th style="width:85px"'+nap('Kolik velikostí se pořizuje')+'>Velikostí</th>'
       + '<th style="width:85px"'+nap('Skladem')+'>Skladem</th>'
       + '<th style="width:34px"></th></tr></thead><tbody>';
+    let skupina = 0;
     zbozi.forEach(z => {
+      const sk = skupinaZbozi(z);
+      if(sk !== skupina){ skupina = sk; h += '<tr class="skupinaZbozi"><td colspan="10">' + esc(nadpisSkupinyZbozi(sk)) + '</td></tr>'; }
       const va = D.zboziVarianty.filter(v => v.zbozi_kod === z.kod && v.aktivni !== 'ne');
       const sklad = D.zboziVarianty.filter(v => v.zbozi_kod === z.kod)
                       .reduce((a,v) => a + skladVarianty(v.kod), 0);
@@ -9649,7 +9856,10 @@ function kresliObleceni(){
       h += '<tr>'
         + vyber(i, 'druh_kod', z.druh_kod, 'druhy')
         + vyber(i, 'vyrobce_kod', z.vyrobce_kod, 'vyrobci')
-        + '<td><input type="text" data-i="'+i+'" data-p="rok" value="'+esc(z.rok||'')+'" placeholder="bez ročníku"></td>'
+        + '<td><select data-i="'+i+'" data-p="rok" title="Bez ročníku = nadčasové zboží; ročník = zboží s motivem toho roku">'
+          + '<option value="">bez ročníku</option>'
+          + [...new Set(ROKY.concat(z.rok ? [z.rok] : []))].map(rk => '<option value="'+esc(rk)+'"'+(rk===z.rok?' selected':'')+'>'+esc(rk)+'</option>').join('')
+          + '</select></td>'
         + '<td><input type="text" data-i="'+i+'" data-p="nazev" value="'+esc(z.nazev||'')+'"></td>'
         + vyber(i, 'rada_kod', z.rada_kod, 'rady')
         + '<td class="stred"><input type="number" step="1" data-i="'+i+'" data-p="cena_kc" value="'+(z.cena_kc==null?'':z.cena_kc)+'"></td>'
@@ -10128,7 +10338,7 @@ function odpovedZFormulare(objednavka){
 
 function kresliObjednavkyUcastniku(){
   const t = $('#tabObjednavkyUcastniku'); if(!t) return;
-  const objednavky = D.obleceniObjednavky.slice()
+  const objednavky = D.obleceniObjednavky.filter(rokSedi)
     .sort((a, b) => String(a.kod).localeCompare(String(b.kod), 'cs'));
   const souhrn = $('#souhrnObjednavek');
 
@@ -10256,8 +10466,8 @@ function kresliObjednavkyUcastniku(){
 /* Poptávka je součet položek objednávek, které ještě nejsou vyřízené.
    Zrušené a vydané se nepočítají — ty už nikdo nečeká. */
 function poptavkaPoVelikostech(){
-  const stavy = {};
-  D.obleceniObjednavky.forEach(o => { stavy[o.kod] = o.stav; });
+  const stavy = {}, jinyRok = new Set();
+  D.obleceniObjednavky.forEach(o => { stavy[o.kod] = o.stav; if(!rokSedi(o)) jinyRok.add(o.kod); });
   const soucet = {};
   /* Do poptávky patří objednávky, které někdo ještě čeká — tedy nové.
      Vydané už člověk má, zrušené nechce. Zaplacení je vedle toho vlastní
@@ -10265,6 +10475,7 @@ function poptavkaPoVelikostech(){
      *Upraveno 19. 9. 2026 (v5.103p), kdy „zaplacena" přestala být stavem.* */
   D.obleceniPolozky.forEach(p => {
     const stav = stavy[p.objednavka_kod];
+    if(jinyRok.has(p.objednavka_kod)) return;      // objednávka jiného ročníku (přepínač nahoře)
     if(stav && stav !== 'nova') return;
     soucet[p.varianta_kod] = (soucet[p.varianta_kod] || 0) + (+p.pocet || 0);
   });
@@ -10338,13 +10549,15 @@ function kresliObjednavkyDodavatelum(){
   // položky vybrané objednávky
   const el = $('#polozkyDodavatele'); if(!el) return;
   if(!D.dodObjednavky.length){ el.innerHTML = ''; return; }
-  if(!vybranaDodObjednavka || !D.dodObjednavky.some(o => o.kod === vybranaDodObjednavka))
-    vybranaDodObjednavka = D.dodObjednavky[0].kod;
+  const dodVRoce = D.dodObjednavky.filter(rokSedi);
+  if(!dodVRoce.length){ el.innerHTML = '<p class="popisek">V ročníku vybraném nahoře žádná objednávka dodavateli není.</p>'; vybranaDodObjednavka = ''; return; }
+  if(!vybranaDodObjednavka || !dodVRoce.some(o => o.kod === vybranaDodObjednavka))
+    vybranaDodObjednavka = dodVRoce[0].kod;
 
   el.innerHTML = '<label class="popisek" style="display:block;margin-bottom:3px">Položky objednávky</label>'
     + '<select id="vyberDodSel" style="min-width:min(300px,100%);max-width:100%;padding:7px 9px;'
     + 'border:1px solid var(--linka);border-radius:8px;font:inherit">'
-    + D.dodObjednavky.map(o => '<option value="'+esc(o.kod)+'"'
+    + dodVRoce.map(o => '<option value="'+esc(o.kod)+'"'
         + (o.kod === vybranaDodObjednavka ? ' selected' : '') + '>'
         + esc(o.kod + ' — ' + nazevVyrobce(o.vyrobce_kod)) + '</option>').join('')
     + '</select><div class="obal-tab" style="margin-top:10px"><table class="tab" id="tabDodPolozky"></table></div>';
@@ -11148,7 +11361,7 @@ function uplatniPrava(){
        Jakmile se z nich staly vícevýběry poskládané z tlačítek, přestala je
        krýt: tlačítko filtru se zamklo a na mobilu ho pravidlo pro zamčená
        tlačítka v liště rovnou schovalo — filtr na grupy zmizel. */
-    const jeOvladaniFiltru = el => !!el.closest('.ft-radek,.ft-info')   // filtry nad tabulkami (v5.109p)
+    const jeOvladaniFiltru = el => !!el.closest('.ft-radek,.ft-info,.obl-rok,.sbal-vse')   // filtry nad tabulkami, ročník a sbalování v Oblečení
       || !!el.closest('.nastroje')
       && (el.tagName === 'SELECT' || !!el.closest('.vicevyber')
           || el.id === 'filtrKod' || el.hasAttribute('data-filtr'));
@@ -12067,9 +12280,13 @@ async function nactiZDatabaze(){
     const n = await sbDotaz('verejne_nastaveni?select=aktivni_rok,datum_zavodu,pravidla');
     if(n.length){ D.nastaveni.aktivni_rok = n[0].aktivni_rok; D.nastaveni.datum_zavodu = n[0].datum_zavodu || '';
       D.nastaveni.pravidla = n[0].pravidla || {};
-      PRAVIDLA_ZMENENA.clear(); ROCNIK_ZMENEN = false; }
+      PRAVIDLA_ZMENENA.clear(); ROCNIK_ZMENEN = false;
+      vstupyZPravidel(); }
   }catch(e){ hlaseni.push('nastavení: ' + e.message); }
   doplnCasyBezcu();          // časy běžců se berou z HB25, ne z toho, co přišlo z databáze
+  // velikosti triček z minulých ročníků – pro historii podílů a přípravu nového ročníku (v5.110p)
+  try { D.velikostiHist = await sbDotaz('tricka_velikosti?select=rok,rada,kod,varka1,varka2,varka3&rok=neq.' + encodeURIComponent(rok)); }
+  catch(e){ D.velikostiHist = []; }
   return {potize: hlaseni, poznamky};
 }
 const klicRadku = (sada, r) => MAPA[sada].klic.map(k => r[k]).join('|');
