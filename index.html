@@ -747,6 +747,7 @@ details.sbal-obl[open] > summary{margin-bottom:8px}
 .sbal-vse button{font:inherit;font-size:12.5px;border:1px solid var(--linka);background:#fff;color:var(--tmava);border-radius:8px;padding:4px 10px;cursor:pointer}
 /* Filtry a řazení nad tabulkami (v5.109p) */
 .tab.ft tbody tr:nth-child(even){background:inherit}
+.tab tr.ft-skryt{display:none!important}
 .tab.ft tbody tr.ft-sudy{background:#FCFAF7}
 .tab.ft tbody tr:hover{background:#F6F1E9}
 .tab tr.ft-radek th{background:#EFEBE1;padding:4px 5px;text-transform:none;letter-spacing:0;font-weight:400}
@@ -2411,7 +2412,7 @@ const smiPsat = () => Object.keys(D.prava[platnaUroven()] || {})
                         .some(o => D.prava[platnaUroven()][o] === "zápis");
 
 // Verzi zvedáme ručně při každé změně, čas buildu doplňuje sanitize_public.py.
-const VERZE = "v5.110p";
+const VERZE = "v5.111p";
 // Čas buildu dřív zapisoval sanitize_public.py; od září se nahrává bez něj a zůstal tu 19. 9. 2026.
 // Prázdný BUILD = ukáže se čas nahrání souboru, který posílá server (document.lastModified), v5.108p.
 const BUILD = "";
@@ -9493,6 +9494,32 @@ const FT_TABULKY = [
   { id:'formulare', sel:'#tabFormulare', rokSloupec:'Ročník', sloupce:{ 'Kód':'text','Název':'text','Typ':'vyber','Ročník':'vyber','Uzávěrka':'datum' } },
   { id:'dod-objednavky', sel:'#tabDodObjednavky', rokSloupec:'Ročník', sloupce:{ 'Kód':'text','Výrobce':'vyber','Ročník':'vyber','Datum':'datum','Stav':'vyber','Poznámka':'text' } },
   { id:'vlny', sel:'#tabObjednavky', rokSloupec:'Ročník', sloupce:{ 'Ročník':'vyber','Vlna':'cislo','Datum':'datum','Kusů':'cislo','Poznámka':'text' } },
+  // fáze 2 (Keksa 24. 10. 2026, v5.111p)
+  { id:'tymy', sel:'#tabTymy', sloupce:{ 'Kód':'text','Štítek':'text','Jede letos':'vyber','Název':'text','Zámek':'vyber',
+      'V podrobném':'vyber','Členové':'text','Pořadí':'cislo','Přejezdy':'vyber','Doprava':'vyber','Min značení':'cislo',
+      'Max značení':'cislo','Značení teď':'cislo','Min úklid':'cislo','Max úklid':'cislo','Úklid teď':'cislo','Poznámka':'text' } },
+  { id:'predavky', sel:'#tabPredavky', sloupce:{ '#':'cislo','Název místa':'text','Typ zajištění':'vyber','Cesta autem':'text',
+      'Trasování':'text','Úklid':'text','První běžec':'cas','Poslední běžec':'cas','Zavřít od':'cas','Zavřít do':'cas','Poznámka':'text',
+      'Etapa km':'cislo','GPS šířka':'text','GPS délka':'text','Soubor GPX':'text','Mapa etapy':'text' } },
+  { id:'todo', sel:'#tabTodo', sloupce:{ 'Co se má udělat':'text','Kdo':'vyber','Ročník':'vyber','Termín':'datum','Předávka':'vyber',
+      'Grupa':'vyber','Priorita':'vyber','Stav':'vyber' } },
+  { id:'kdo-co', sel:'#tabKdoCo', sloupce:{ 'Kat. č.':'text','Zboží a velikost':'text','Chtějí':'cislo','Skladem':'cislo',
+      'Objednává se':'cislo','Kdo si to objednal':'text' } },
+  { id:'poptavka', sel:'#tabPoptavka', sloupce:{ 'Zboží':'vyber','Výrobce':'vyber','Velikost':'vyber','Poptáváno':'cislo','Skladem':'cislo','Chybí':'cislo' } },
+  { id:'pohyby', sel:'#tabPohyby', bezRazeni:true,   // pořadí řádků používá omezPohyby (posledních 20)
+    sloupce:{ 'Zboží':'vyber','Velikost':'vyber','Skladem':'cislo','Datum':'datum','Změna':'cislo','Důvod':'vyber','Ročník':'vyber','Poznámka':'text' } },
+  { id:'dod-polozky', sel:'#tabDodPolozky', sloupce:{ 'Zboží a velikost':'text','Kusů':'cislo','Poznámka':'text' } },
+  { id:'sortiment', sel:'#tabZbozi', bezRazeni:true,  // řádky jsou rozdělené do skupin (letos / zbytky / nenabízí se)
+    sloupce:{ 'Druh':'vyber','Výrobce':'vyber','Ročník':'vyber','Název':'text','Velikostní řada':'vyber','Prodej Kč':'cislo',
+      'Nákup Kč':'cislo','Velikostí':'cislo','Skladem':'cislo' } },
+  { id:'kody-dodavatele', sel:'#tabKodyDodavatele', sloupce:{ 'Zboží':'vyber','Střih':'vyber','Katalogové číslo':'text','Název u dodavatele':'text','Poznámka':'text' } },
+  { id:'sloupce-formulare', sel:'#tabSloupce', sloupce:{ 'Formulář':'vyber','Sloupec ve formuláři':'text','Co to je':'vyber','Zboží':'vyber',
+      'Velikost':'vyber','Střih ze sloupce':'vyber','Natvrdo velikost v katalogu':'vyber' } },
+  { id:'useky', sel:'#tabUseky', sloupce:{ 'Etapa':'vyber','#':'cislo','Délka':'cislo','Stoupá':'cislo','Klesá':'cislo','Ráz':'vyber',
+      'Smí se autem':'vyber','Povrch':'vyber','Tempo':'text','Značení':'text','Co na tom je podle OSM':'text' } },
+  { id:'noclehy-mista', sel:'#tabNocMista', sloupce:{ 'Kód':'text','Název':'text','Noc':'vyber','U předávky':'cislo','Adresa':'text',
+      'Kapacita':'cislo','Pokoje':'text','Kontakt':'text','Telefon':'text','Cena':'text','Platba':'vyber','Rezervace':'text','Poznámka':'text' } },
+  { id:'uzivatele', sel:'#tabUzivatele', sloupce:{ 'E-mail':'text','Jméno':'text','Úroveň':'vyber','Grupa':'vyber','Aktivní':'vyber','Poznámka':'text' } },
 ];
 const FT_KLIC = 'hb_filtry_tabulek';
 let ftStav = (() => { try { return JSON.parse(localStorage.getItem(FT_KLIC) || '{}'); } catch(e){ return {}; } })();
@@ -9577,7 +9604,7 @@ function ftObnov(t, cfg){
     sl.forEach(s => { const td = document.createElement('th'); if(s.typ) td.appendChild(ftOvladac(t, cfg, s)); tr.appendChild(td); });
     t.tHead.appendChild(tr);
     sl.forEach(s => {
-      if(!s.typ || s.th.classList.contains('razitelny')) return;  // PŘED v podrobném plánu řadí aplikace sama
+      if(!s.typ || cfg.bezRazeni || s.th.classList.contains('razitelny')) return;  // PŘED v podrobném plánu řadí aplikace sama
       s.th.classList.add('ft-razeni'); s.th.title = (s.th.title ? s.th.title + ' · ' : '') + 'Kliknutím seřadíte';
       s.th.onclick = () => {
         const r = st.r && st.r.sl === s.nadpis ? st.r : null;
@@ -9603,12 +9630,12 @@ function ftObnov(t, cfg){
   radky.forEach(tr => {
     const ok = sl.every(s => !s.typ || ftSedi(ftHodnota(tr.cells[s.k]), s.typ, st.f[s.nadpis]))
       && (kRok < 0 || tr.classList.contains('novy') || ftHodnota(tr.cells[kRok]) === rokF);
-    tr.style.display = ok ? '' : 'none';
-    (cfg.pripojene ? cfg.pripojene(tr) : []).forEach(p => { p.style.display = ok ? '' : 'none'; });
-    if(ok) videt++;
+    tr.classList.toggle('ft-skryt', !ok);
+    (cfg.pripojene ? cfg.pripojene(tr) : []).forEach(p => { p.classList.toggle('ft-skryt', !ok); });
+    if(ok && tr.style.display !== 'none') videt++;
   });
   // řazení: jen datové řádky (s připojenými), ostatní (Celkem, hlášky) zůstanou na konci
-  if(st.r){
+  if(st.r && !cfg.bezRazeni){
     const s = sl.find(x => x.nadpis === st.r.sl);
     if(s){
       const tb = t.tBodies[0], zbytek = [...tb.rows].filter(tr => radky.indexOf(tr) < 0 && !radky.some(d => (cfg.pripojene ? cfg.pripojene(d) : []).indexOf(tr) >= 0));
@@ -9625,7 +9652,7 @@ function ftObnov(t, cfg){
     }
   }
   // střídání barev jen u viditelných řádků
-  let n = 0; radky.forEach(tr => { if(tr.style.display !== 'none'){ tr.classList.toggle('ft-sudy', n % 2 === 1); n++; } });
+  let n = 0; radky.forEach(tr => { if(!tr.classList.contains('ft-skryt') && tr.style.display !== 'none'){ tr.classList.toggle('ft-sudy', n % 2 === 1); n++; } });
   // souhrn nad tabulkou a panel filtrů pro mobil
   const obal = t.closest('.obal-tab') || t;
   let info = obal.previousElementSibling;
